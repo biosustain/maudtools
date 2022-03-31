@@ -1,0 +1,217 @@
+#####Kinetic model #####
+
+[[compartment]]
+id = "c"
+name = "cytosol"
+volume = 1
+
+[[metabolite-in-compartment]]
+metabolite = "g6p"
+name = "Glucose 6-phosphate"
+compartment = "c"
+balanced = false
+metabolite_inchi_key = "NBSCHQHZLSJFNQ-GASJEMHNSA-N"
+
+[[metabolite-in-compartment]]
+metabolite = "f6p"
+name = "Fructose 6-phosphate"
+compartment = "c"
+balanced = true
+metabolite_inchi_key = "GSXOAOHZAIYLCY-HSUXUTPPSA-N"
+
+[[metabolite-in-compartment]]
+metabolite = "fdp"
+name = "Fructose 1,6-bisphosphate"
+compartment = "c"
+balanced = true
+metabolite_inchi_key = "RNBGYGVWRKECFJ-ARQDHWQXSA-N"
+
+[[metabolite-in-compartment]]
+metabolite = "dhap"
+name = "Dihydroxyacetone phosphate"
+compartment = "c"
+balanced = true
+metabolite_inchi_key = "GNGACRATGGDKBX-UHFFFAOYSA-N"
+
+[[metabolite-in-compartment]]
+metabolite = "g3p"
+name = "Glyceraldehyde 3-phosphate"
+compartment = "c"
+balanced = true
+metabolite_inchi_key = "LXJXRIRHZLFYRP-VKHMYHEASA-L"
+
+[[metabolite-in-compartment]]
+metabolite = "13dpg"
+name = "3-phosphoglyceroyl phosphate"
+compartment = "c"
+balanced = true
+metabolite_inchi_key = "LJQLQCAXBUHEAZ-UWTATZPHSA-N"
+
+[[metabolite-in-compartment]]
+metabolite = "3pg"
+name = "3-phosphoglycerate"
+compartment = "c"
+balanced = true
+metabolite_inchi_key = "OSJPPGNTCRNQQC-UHFFFAOYSA-N"
+
+[[metabolite-in-compartment]]
+metabolite = "2pg"
+name = "Glycerate 2-phosphate"
+compartment = "c"
+balanced = true
+metabolite_inchi_key = "GXIURPTVHJPJLF-UWTATZPHSA-N"
+
+[[metabolite-in-compartment]]
+metabolite = "pep"
+name = "Phoshoenolpyruvate"
+compartment = "c"
+balanced = true
+metabolite_inchi_key = "DTBNBXWJWCWCIK-UHFFFAOYSA-K"
+
+[[metabolite-in-compartment]]
+metabolite = "atp"
+name = "ATP C10H12N5O13P3"
+compartment = "c"
+balanced = false
+metabolite_inchi_key = "ZKHQWZAMYRWXGA-KQYNXXCUSA-J"
+
+[[metabolite-in-compartment]]
+metabolite = "adp"
+name = "ADP C10H12N5O10P2"
+compartment = "c"
+balanced = false
+metabolite_inchi_key = "XTWYTFMLZFPYCI-KQYNXXCUSA-K"
+
+[[metabolite-in-compartment]]
+metabolite = "pi"
+name = "Phosphate"
+compartment = "c"
+balanced = false
+metabolite_inchi_key = "NBIIXXVUZAFLBC-UHFFFAOYSA-L"
+
+[[metabolite-in-compartment]]
+metabolite = "nad"
+name = "NAD+ C21H27N7O14P2"
+compartment = "c"
+balanced = false
+metabolite_inchi_key = "BAWFJGJZGIEFAR-NNYOXOHSSA-M"
+
+[[metabolite-in-compartment]]
+metabolite = "nadh"
+name = "NADH C21H29N7O14P2"
+compartment = "c"
+balanced=false
+metabolite_inchi_key = "BOPGDPNILDQYTO-NNYOXOHSSA-L"
+
+[[reaction]]
+id = "PGI"
+name = "Phosphoglucose isomerase"
+stoichiometry = {g6p_c= -1, f6p_c= 1}
+mechanism = "reversible_modular_rate_law"
+[[reaction.enzyme]]
+id = "PGI"
+name = "Phosphoglucose isomerase"
+gene = "pgi"
+
+[[reaction]]
+id = "PFK"
+name = "Phosphofructokinase"
+stoichiometry = {f6p_c= -1, atp_c= -1, fdp_c= 1, adp_c= 1}
+mechanism = "reversible_modular_rate_law"
+[[reaction.enzyme]]
+id = "PFKA"
+name = "Phosphofructokinase A"
+subunits = 4
+gene = "pfkA"
+[[reaction.enzyme]]
+id = "PFKB"
+name = "Phosphofructokinase B"
+gene = "pfkB"
+
+[[reaction]]
+id = "FBP"
+name = "Fructose bisphosphatase"
+water_stoichiometry = -1
+stoichiometry = {fdp_c= -1, f6p_c= 1, pi_c= 1}
+mechanism = "reversible_modular_rate_law"
+[[reaction.enzyme]]
+id = "FBPA"
+name = "Fructose bisphosphatase I or A"
+subunits = 4
+gene = "fbp"
+[[reaction.enzyme]]
+id = "FBPB"
+name = "Fructose bisphosphatase II or B"
+subunits = 2
+gene = "glpX"
+
+[[reaction]]
+id = "FBA"
+name = "Fructose bisphosphate aldolase"
+stoichiometry = {fdp_c= -1, dhap_c= 1, g3p_c= 1}
+mechanism = "reversible_modular_rate_law"
+[[reaction.enzyme]]
+id = "FBAA"
+name = "Fructose bisphosphate aldolase A"
+gene = "fbaA"
+[[reaction.enzyme]]
+id = "FBAB"
+name = "Fructose bisphosphate aldolase B"
+gene = "fbaB"
+
+[[reaction]]
+id = "TPI"
+name = "Triosephosphate isomerase"
+stoichiometry = {dhap_c= -1, g3p_c= 1}
+mechanism = "reversible_modular_rate_law"
+[[reaction.enzyme]]
+id = "TPI"
+name = "Triosephosphate isomerase"
+gene = "tpiA"
+
+[[reaction]]
+id = "GAPD"
+name = "Glyceraldehyde 3-phosphate dehydrogenase"
+stoichiometry = {g3p_c= -1, nad_c= -1, pi_c= -1, 13dpg_c= 1, nadh_c= 1}
+mechanism = "reversible_modular_rate_law"
+[[reaction.enzyme]]
+id = "GAPD"
+name = "Glyceraldehyde 3-phosphate dehydrogenase"
+gene = "gapA"
+
+[[reaction]]
+id = "PGK"
+name = "Phosphoglycerate kinase"
+stoichiometry = {3pg_c= -1, atp_c= -1, 13dpg_c= 1, adp_c= 1}
+mechanism = "reversible_modular_rate_law"
+[[reaction.enzyme]]
+id = "PGK"
+name = "Phosphoglycerate kinase"
+gene = "pgk"
+
+[[reaction]]
+id = "PGM"
+name = "Phosphoglycerate mutase"
+stoichiometry = {2pg_c= -1, 3pg_c= 1}
+mechanism = "reversible_modular_rate_law"
+[[reaction.enzyme]]
+id = "PGM"
+name = "Phosphoglycerate mutase"
+gene = "gpmA"
+
+[[reaction]]
+id = "ENO"
+name = "Enolase"
+water_stoichiometry = 1
+stoichiometry = {2pg_c= -1, pep_c= 1}
+mechanism = "reversible_modular_rate_law"
+[[reaction.enzyme]]
+id = "ENO"
+name = "Enolase"
+gene = "eno"
+
+[[drain]]
+id = "pep_drain"
+name = "PEP drain"
+stoichiometry = {pep_c= -1}
+
