@@ -21,11 +21,22 @@ Tools for working with Maud (work in progress!)
 ..
     * Documentation: https://maudtools.readthedocs.io.
 
+Installation
+--------
+
+.. code::
+
+   pip install git+https://github.com/biosustain/maudtools.git#egg=maudtools
+
 
 Features
 --------
 
-* TODO
+Add multivariate formation energy priors from equilibrator to a maud input folder
+
+.. code::
+
+   maud_tools fetch-dgf-priors path/to/maud_input
 
 Credits
 -------
