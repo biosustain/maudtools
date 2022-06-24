@@ -4,29 +4,34 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from equilibrator_api import ComponentContribution
+from equilibrator_api import Q_, ComponentContribution
 from equilibrator_cache.models.compound import Compound
+from maud.data_model.maud_input import MaudInput
 
-from maud.data_model import MaudInput
 
-
-def fetch_dgf_priors_from_equilibrator(mi: MaudInput) -> Tuple[pd.Series, pd.DataFrame]:
+def fetch_dgf_priors_from_equilibrator(
+    mi: MaudInput, temperature: str, ph: float
+) -> Tuple[pd.Series, pd.DataFrame]:
     """Given a Maud input, get a multivariate prior from equilibrator.
 
     Returns a pandas Series of prior means and a pandas DataFrame of
     covariances. Both are indexed by metabolite ids.
 
     :param mi: A MaudInput object
+    :param temperature: str, a temperature quantity (e.g., "310.15K")
+    :param ph: int, pH
 
     """
     cc = ComponentContribution()
+    cc.p_h = Q_(ph)
+    cc.temperature = Q_(temperature)
     mu = []
     sigmas_fin = []
     sigmas_inf = []
-    met_ix = pd.Index(mi.stan_coords.metabolites, name="metabolite")
+    met_ix = pd.Index(mi.stan_variable_set.dgf.ids, name="metabolite")[0]
     met_order = [m.id for m in mi.kinetic_model.metabolites]
     for m in mi.kinetic_model.metabolites:
-        external_id = m.id if m.inchi_key is None else m.inchi_key
+        external_id = m.metabolite_id if m.inchi_key is None else m.inchi_key
         c = cc.get_compound(external_id)
         if isinstance(c, Compound):
             mu_c, sigma_fin_c, sigma_inf_c = cc.standard_dg_formation(c)
@@ -52,5 +57,6 @@ def fetch_dgf_priors_from_equilibrator(mi: MaudInput) -> Tuple[pd.Series, pd.Dat
         .round(10)
     )
     mu = pd.Series(mu, index=met_order, name="prior_mean_dgf").loc[met_ix].round(10)
+    mu.index = mu.index.set_names("metabolite")
+    cov.index = cov.index.set_names("metabolite")
     return mu, cov
-
