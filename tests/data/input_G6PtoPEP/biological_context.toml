@@ -1,19 +1,20 @@
 [[experiment]]
 id = "Evo04Evo01EP"
-sample = true
-predict = false
+is_train = true
+is_test = false
 
 [[experiment]]
 id = "Evo04pgiEvo01EP"
-sample = true
-predict = false
+is_train = true
+is_test = false
 
 [[experiment]]
 id = "Evo04ptsHIcrrEvo01EP"
-sample = true
-predict = false
+is_train = true
+is_test = false
 
 [[experiment]]
 id = "Evo04sdhCBEvo01EP"
-sample = true
-predict = false
+is_train = true
+is_test = false
+
