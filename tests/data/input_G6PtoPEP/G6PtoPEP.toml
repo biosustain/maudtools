@@ -1,217 +1,354 @@
-#####Kinetic model #####
-
+allostery = []
+competitive_inhibition = []
 [[compartment]]
 id = "c"
 name = "cytosol"
-volume = 1
-
-[[metabolite-in-compartment]]
-metabolite = "g6p"
-name = "Glucose 6-phosphate"
-compartment = "c"
-balanced = false
-metabolite_inchi_key = "NBSCHQHZLSJFNQ-GASJEMHNSA-N"
-
-[[metabolite-in-compartment]]
-metabolite = "f6p"
-name = "Fructose 6-phosphate"
-compartment = "c"
-balanced = true
-metabolite_inchi_key = "GSXOAOHZAIYLCY-HSUXUTPPSA-N"
-
-[[metabolite-in-compartment]]
-metabolite = "fdp"
-name = "Fructose 1,6-bisphosphate"
-compartment = "c"
-balanced = true
-metabolite_inchi_key = "RNBGYGVWRKECFJ-ARQDHWQXSA-N"
-
-[[metabolite-in-compartment]]
-metabolite = "dhap"
-name = "Dihydroxyacetone phosphate"
-compartment = "c"
-balanced = true
-metabolite_inchi_key = "GNGACRATGGDKBX-UHFFFAOYSA-N"
-
-[[metabolite-in-compartment]]
-metabolite = "g3p"
-name = "Glyceraldehyde 3-phosphate"
-compartment = "c"
-balanced = true
-metabolite_inchi_key = "LXJXRIRHZLFYRP-VKHMYHEASA-L"
-
-[[metabolite-in-compartment]]
-metabolite = "13dpg"
-name = "3-phosphoglyceroyl phosphate"
-compartment = "c"
-balanced = true
-metabolite_inchi_key = "LJQLQCAXBUHEAZ-UWTATZPHSA-N"
-
-[[metabolite-in-compartment]]
-metabolite = "3pg"
-name = "3-phosphoglycerate"
-compartment = "c"
-balanced = true
-metabolite_inchi_key = "OSJPPGNTCRNQQC-UHFFFAOYSA-N"
-
-[[metabolite-in-compartment]]
-metabolite = "2pg"
-name = "Glycerate 2-phosphate"
-compartment = "c"
-balanced = true
-metabolite_inchi_key = "GXIURPTVHJPJLF-UWTATZPHSA-N"
-
-[[metabolite-in-compartment]]
-metabolite = "pep"
-name = "Phoshoenolpyruvate"
-compartment = "c"
-balanced = true
-metabolite_inchi_key = "DTBNBXWJWCWCIK-UHFFFAOYSA-K"
-
-[[metabolite-in-compartment]]
-metabolite = "atp"
-name = "ATP C10H12N5O13P3"
-compartment = "c"
-balanced = false
-metabolite_inchi_key = "ZKHQWZAMYRWXGA-KQYNXXCUSA-J"
-
-[[metabolite-in-compartment]]
-metabolite = "adp"
-name = "ADP C10H12N5O10P2"
-compartment = "c"
-balanced = false
-metabolite_inchi_key = "XTWYTFMLZFPYCI-KQYNXXCUSA-K"
-
-[[metabolite-in-compartment]]
-metabolite = "pi"
-name = "Phosphate"
-compartment = "c"
-balanced = false
-metabolite_inchi_key = "NBIIXXVUZAFLBC-UHFFFAOYSA-L"
-
-[[metabolite-in-compartment]]
-metabolite = "nad"
-name = "NAD+ C21H27N7O14P2"
-compartment = "c"
-balanced = false
-metabolite_inchi_key = "BAWFJGJZGIEFAR-NNYOXOHSSA-M"
-
-[[metabolite-in-compartment]]
-metabolite = "nadh"
-name = "NADH C21H29N7O14P2"
-compartment = "c"
-balanced=false
-metabolite_inchi_key = "BOPGDPNILDQYTO-NNYOXOHSSA-L"
+volume = 1.0
 
 [[reaction]]
 id = "PGI"
 name = "Phosphoglucose isomerase"
-stoichiometry = {g6p_c= -1, f6p_c= 1}
-mechanism = "reversible_modular_rate_law"
-[[reaction.enzyme]]
-id = "PGI"
-name = "Phosphoglucose isomerase"
-gene = "pgi"
+mechanism = "REVERSIBLE_MICHAELIS_MENTEN"
+water_stoichiometry = 0.0
+transported_charge = 0.0
 
+[reaction.stoichiometry]
+g6p_c = -1.0
+f6p_c = 1.0
 [[reaction]]
 id = "PFK"
 name = "Phosphofructokinase"
-stoichiometry = {f6p_c= -1, atp_c= -1, fdp_c= 1, adp_c= 1}
-mechanism = "reversible_modular_rate_law"
-[[reaction.enzyme]]
-id = "PFKA"
-name = "Phosphofructokinase A"
-subunits = 4
-gene = "pfkA"
-[[reaction.enzyme]]
-id = "PFKB"
-name = "Phosphofructokinase B"
-gene = "pfkB"
+mechanism = "REVERSIBLE_MICHAELIS_MENTEN"
+water_stoichiometry = 0.0
+transported_charge = 0.0
 
+[reaction.stoichiometry]
+f6p_c = -1.0
+atp_c = -1.0
+fdp_c = 1.0
+adp_c = 1.0
 [[reaction]]
 id = "FBP"
 name = "Fructose bisphosphatase"
-water_stoichiometry = -1
-stoichiometry = {fdp_c= -1, f6p_c= 1, pi_c= 1}
-mechanism = "reversible_modular_rate_law"
-[[reaction.enzyme]]
-id = "FBPA"
-name = "Fructose bisphosphatase I or A"
-subunits = 4
-gene = "fbp"
-[[reaction.enzyme]]
-id = "FBPB"
-name = "Fructose bisphosphatase II or B"
-subunits = 2
-gene = "glpX"
+mechanism = "REVERSIBLE_MICHAELIS_MENTEN"
+water_stoichiometry = -1.0
+transported_charge = 0.0
 
+[reaction.stoichiometry]
+fdp_c = -1.0
+f6p_c = 1.0
+pi_c = 1.0
 [[reaction]]
 id = "FBA"
 name = "Fructose bisphosphate aldolase"
-stoichiometry = {fdp_c= -1, dhap_c= 1, g3p_c= 1}
-mechanism = "reversible_modular_rate_law"
-[[reaction.enzyme]]
+mechanism = "REVERSIBLE_MICHAELIS_MENTEN"
+water_stoichiometry = 0.0
+transported_charge = 0.0
+
+[reaction.stoichiometry]
+fdp_c = -1.0
+dhap_c = 1.0
+g3p_c = 1.0
+[[reaction]]
+id = "TPI"
+name = "Triosephosphate isomerase"
+mechanism = "REVERSIBLE_MICHAELIS_MENTEN"
+water_stoichiometry = 0.0
+transported_charge = 0.0
+
+[reaction.stoichiometry]
+dhap_c = -1.0
+g3p_c = 1.0
+[[reaction]]
+id = "GAPD"
+name = "Glyceraldehyde 3-phosphate dehydrogenase"
+mechanism = "REVERSIBLE_MICHAELIS_MENTEN"
+water_stoichiometry = 0.0
+transported_charge = 0.0
+
+[reaction.stoichiometry]
+g3p_c = -1.0
+nad_c = -1.0
+pi_c = -1.0
+13dpg_c = 1.0
+nadh_c = 1.0
+[[reaction]]
+id = "PGK"
+name = "Phosphoglycerate kinase"
+mechanism = "REVERSIBLE_MICHAELIS_MENTEN"
+water_stoichiometry = 0.0
+transported_charge = 0.0
+
+[reaction.stoichiometry]
+3pg_c = -1.0
+atp_c = -1.0
+13dpg_c = 1.0
+adp_c = 1.0
+[[reaction]]
+id = "PGM"
+name = "Phosphoglycerate mutase"
+mechanism = "REVERSIBLE_MICHAELIS_MENTEN"
+water_stoichiometry = 0.0
+transported_charge = 0.0
+
+[reaction.stoichiometry]
+2pg_c = -1.0
+3pg_c = 1.0
+[[reaction]]
+id = "ENO"
+name = "Enolase"
+mechanism = "REVERSIBLE_MICHAELIS_MENTEN"
+water_stoichiometry = 1.0
+transported_charge = 0.0
+
+[reaction.stoichiometry]
+2pg_c = -1.0
+pep_c = 1.0
+[[enzyme]]
+id = "PGI"
+name = "Phosphoglucose isomerase"
+subunits = 1
+
+[[enzyme]]
+id = "PFKA"
+name = "Phosphofructokinase A"
+subunits = 4
+
+[[enzyme]]
+id = "PFKB"
+name = "Phosphofructokinase B"
+subunits = 1
+
+[[enzyme]]
+id = "FBPA"
+name = "Fructose bisphosphatase I or A"
+subunits = 4
+
+[[enzyme]]
+id = "FBPB"
+name = "Fructose bisphosphatase II or B"
+subunits = 2
+
+[[enzyme]]
 id = "FBAA"
 name = "Fructose bisphosphate aldolase A"
-gene = "fbaA"
-[[reaction.enzyme]]
+subunits = 1
+
+[[enzyme]]
 id = "FBAB"
 name = "Fructose bisphosphate aldolase B"
-gene = "fbaB"
+subunits = 1
 
-[[reaction]]
+[[enzyme]]
 id = "TPI"
 name = "Triosephosphate isomerase"
-stoichiometry = {dhap_c= -1, g3p_c= 1}
-mechanism = "reversible_modular_rate_law"
-[[reaction.enzyme]]
-id = "TPI"
-name = "Triosephosphate isomerase"
-gene = "tpiA"
+subunits = 1
 
-[[reaction]]
+[[enzyme]]
 id = "GAPD"
 name = "Glyceraldehyde 3-phosphate dehydrogenase"
-stoichiometry = {g3p_c= -1, nad_c= -1, pi_c= -1, 13dpg_c= 1, nadh_c= 1}
-mechanism = "reversible_modular_rate_law"
-[[reaction.enzyme]]
-id = "GAPD"
-name = "Glyceraldehyde 3-phosphate dehydrogenase"
-gene = "gapA"
+subunits = 1
 
-[[reaction]]
+[[enzyme]]
 id = "PGK"
 name = "Phosphoglycerate kinase"
-stoichiometry = {3pg_c= -1, atp_c= -1, 13dpg_c= 1, adp_c= 1}
-mechanism = "reversible_modular_rate_law"
-[[reaction.enzyme]]
-id = "PGK"
-name = "Phosphoglycerate kinase"
-gene = "pgk"
+subunits = 1
 
-[[reaction]]
+[[enzyme]]
 id = "PGM"
 name = "Phosphoglycerate mutase"
-stoichiometry = {2pg_c= -1, 3pg_c= 1}
-mechanism = "reversible_modular_rate_law"
-[[reaction.enzyme]]
-id = "PGM"
-name = "Phosphoglycerate mutase"
-gene = "gpmA"
+subunits = 1
 
-[[reaction]]
+[[enzyme]]
 id = "ENO"
 name = "Enolase"
-water_stoichiometry = 1
-stoichiometry = {2pg_c= -1, pep_c= 1}
-mechanism = "reversible_modular_rate_law"
-[[reaction.enzyme]]
-id = "ENO"
-name = "Enolase"
-gene = "eno"
+subunits = 1
 
-[[drain]]
-id = "pep_drain"
-name = "PEP drain"
-stoichiometry = {pep_c= -1}
+[[enzyme_reaction]]
+enzyme_id = "PGI"
+reaction_id = "PGI"
+
+[[enzyme_reaction]]
+enzyme_id = "PFKA"
+reaction_id = "PFK"
+
+[[enzyme_reaction]]
+enzyme_id = "PFKB"
+reaction_id = "PFK"
+
+[[enzyme_reaction]]
+enzyme_id = "FBPA"
+reaction_id = "FBP"
+
+[[enzyme_reaction]]
+enzyme_id = "FBPB"
+reaction_id = "FBP"
+
+[[enzyme_reaction]]
+enzyme_id = "FBAA"
+reaction_id = "FBA"
+
+[[enzyme_reaction]]
+enzyme_id = "FBAB"
+reaction_id = "FBA"
+
+[[enzyme_reaction]]
+enzyme_id = "TPI"
+reaction_id = "TPI"
+
+[[enzyme_reaction]]
+enzyme_id = "GAPD"
+reaction_id = "GAPD"
+
+[[enzyme_reaction]]
+enzyme_id = "PGK"
+reaction_id = "PGK"
+
+[[enzyme_reaction]]
+enzyme_id = "PGM"
+reaction_id = "PGM"
+
+[[enzyme_reaction]]
+enzyme_id = "ENO"
+reaction_id = "ENO"
+
+[[metabolite]]
+id = "g6p"
+name = "Glucose 6-phosphate"
+inchi_key = "NBSCHQHZLSJFNQ-GASJEMHNSA-N"
+
+[[metabolite]]
+id = "f6p"
+name = "Fructose 6-phosphate"
+inchi_key = "GSXOAOHZAIYLCY-HSUXUTPPSA-N"
+
+[[metabolite]]
+id = "fdp"
+name = "Fructose 1,6-bisphosphate"
+inchi_key = "RNBGYGVWRKECFJ-ARQDHWQXSA-N"
+
+[[metabolite]]
+id = "dhap"
+name = "Dihydroxyacetone phosphate"
+inchi_key = "GNGACRATGGDKBX-UHFFFAOYSA-N"
+
+[[metabolite]]
+id = "g3p"
+name = "Glyceraldehyde 3-phosphate"
+inchi_key = "LXJXRIRHZLFYRP-VKHMYHEASA-L"
+
+[[metabolite]]
+id = "13dpg"
+name = "3-phosphoglyceroyl phosphate"
+inchi_key = "LJQLQCAXBUHEAZ-UWTATZPHSA-N"
+
+[[metabolite]]
+id = "3pg"
+name = "3-phosphoglycerate"
+inchi_key = "OSJPPGNTCRNQQC-UHFFFAOYSA-N"
+
+[[metabolite]]
+id = "2pg"
+name = "Glycerate 2-phosphate"
+inchi_key = "GXIURPTVHJPJLF-UWTATZPHSA-N"
+
+[[metabolite]]
+id = "pep"
+name = "Phoshoenolpyruvate"
+inchi_key = "DTBNBXWJWCWCIK-UHFFFAOYSA-K"
+
+[[metabolite]]
+id = "atp"
+name = "ATP C10H12N5O13P3"
+inchi_key = "ZKHQWZAMYRWXGA-KQYNXXCUSA-J"
+
+[[metabolite]]
+id = "adp"
+name = "ADP C10H12N5O10P2"
+inchi_key = "XTWYTFMLZFPYCI-KQYNXXCUSA-K"
+
+[[metabolite]]
+id = "pi"
+name = "Phosphate"
+inchi_key = "NBIIXXVUZAFLBC-UHFFFAOYSA-L"
+
+[[metabolite]]
+id = "nad"
+name = "NAD+ C21H27N7O14P2"
+inchi_key = "BAWFJGJZGIEFAR-NNYOXOHSSA-M"
+
+[[metabolite]]
+id = "nadh"
+name = "NADH C21H29N7O14P2"
+inchi_key = "BOPGDPNILDQYTO-NNYOXOHSSA-L"
+
+[[metabolite_in_compartment]]
+metabolite_id = "g6p"
+compartment_id = "c"
+balanced = false
+
+[[metabolite_in_compartment]]
+metabolite_id = "f6p"
+compartment_id = "c"
+balanced = true
+
+[[metabolite_in_compartment]]
+metabolite_id = "fdp"
+compartment_id = "c"
+balanced = true
+
+[[metabolite_in_compartment]]
+metabolite_id = "dhap"
+compartment_id = "c"
+balanced = true
+
+[[metabolite_in_compartment]]
+metabolite_id = "g3p"
+compartment_id = "c"
+balanced = true
+
+[[metabolite_in_compartment]]
+metabolite_id = "13dpg"
+compartment_id = "c"
+balanced = true
+
+[[metabolite_in_compartment]]
+metabolite_id = "3pg"
+compartment_id = "c"
+balanced = true
+
+[[metabolite_in_compartment]]
+metabolite_id = "2pg"
+compartment_id = "c"
+balanced = true
+
+[[metabolite_in_compartment]]
+metabolite_id = "pep"
+compartment_id = "c"
+balanced = true
+
+[[metabolite_in_compartment]]
+metabolite_id = "atp"
+compartment_id = "c"
+balanced = false
+
+[[metabolite_in_compartment]]
+metabolite_id = "adp"
+compartment_id = "c"
+balanced = false
+
+[[metabolite_in_compartment]]
+metabolite_id = "pi"
+compartment_id = "c"
+balanced = false
+
+[[metabolite_in_compartment]]
+metabolite_id = "nad"
+compartment_id = "c"
+balanced = false
+
+[[metabolite_in_compartment]]
+metabolite_id = "nadh"
+compartment_id = "c"
+balanced = false
 

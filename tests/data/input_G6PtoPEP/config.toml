@@ -1,14 +1,12 @@
 name = "G6PtoPEP"
-kinetic_model = "G6PtoPEP.toml"
-priors = "G6PtoPEP_priors.csv"
-measurements = "G6PtoPEP_experiments.csv"
-biological_config = "biological_context.toml"
+kinetic_model_file = "G6PtoPEP.toml"
+priors_file = "G6PtoPEP_priors.csv"
+measurements_file = "G6PtoPEP_experiments.csv"
+experimental_setup_file = "biological_context.toml"
 dgf_mean_file = "dgf_prior_mean_equilibrator.csv"
 dgf_covariance_file = "dgf_prior_cov_equilibrator.csv"
-#user_inits_file = ".csv"
 likelihood = true
 reject_non_steady = false
-#steady_state_threshold_abs = 1e-3
 
 [cmdstanpy_config]
 iter_warmup = 800
@@ -21,5 +19,5 @@ metric = "dense"
 [ode_config]
 rel_tol = 1e-9
 abs_tol = 1e-9
-max_num_steps = 1e9
-timepoint = 1e6
+max_num_steps = 1000000000.0
+timepoint = 1000000.0
