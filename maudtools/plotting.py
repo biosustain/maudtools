@@ -10,7 +10,9 @@ from plotnine import aes, facet_wrap, geom_pointrange, geom_violin, ggplot
 
 def concat_experiments(infd, x_var: str = "reactions"):
     with_exp = {
-        exp.item(): pd.DataFrame(np.concatenate(infd[:, :, i, :]), columns=infd[x_var])
+        exp.item(): pd.DataFrame(
+            np.concatenate(infd[:, :, i, :]), columns=infd[x_var]
+        )
         for i, exp in enumerate(infd.experiments)
     }
     list(map(lambda x: x[1].insert(0, "experiment", x[0]), with_exp.items()))
@@ -98,7 +100,9 @@ def plot_maud_prior(
     >>> from maudtools.plotting import plot_maud_posterior
     >>> plot_maud_posterior(infd, Dgf) + plot_maud_prior(infd, mi.priors, Dgf)
     """
-    with_experiment, non_negative, x_var, key = get_aes_keys(infd, stan_variable)
+    with_experiment, non_negative, x_var, key = get_aes_keys(
+        infd, stan_variable
+    )
 
     var_priors = priors.__getattribute__(x_var)
     if with_experiment:
@@ -111,7 +115,9 @@ def plot_maud_prior(
             df_priors_scale = var_priors.scale.melt(
                 id_vars=["experiment"], var_name=x_var, value_name="scale"
             )
-            df_priors = pd.merge(df_priors, df_priors_scale, on=["experiment", x_var])
+            df_priors = pd.merge(
+                df_priors, df_priors_scale, on=["experiment", x_var]
+            )
     else:
         df_priors = pd.DataFrame(var_priors.location)
         df_priors.columns = ["location"]
