@@ -1,7 +1,5 @@
 """Functions for generating initial values from draws."""
 
-import os
-
 import arviz as az
 import pandas as pd
 from maud.data_model.maud_input import MaudInput
