@@ -1,11 +1,12 @@
 """Console script for maudtools."""
 import os
 
+import arviz as az
 import click
 from maud.loading_maud_inputs import load_maud_input
 
 from maudtools.fetching_dgf_priors import fetch_dgf_priors_from_equilibrator
-from maudtools.generate_inits import generate_inits
+from maudtools.generating_inits import generate_inits
 
 
 @click.group()
@@ -64,18 +65,23 @@ def fetch_dgf_priors(
     "data_path",
     type=click.Path(exists=True, dir_okay=True, file_okay=False),
 )
-@click.option("--chain",
-    default=0,
-    help="Sampling chain using python indexing"
-)
+@click.option("--chain", default=0, help="Sampling chain using python indexing")
 @click.option(
     "--draw",
     default=0,
     help="Sampling draw using python indexing from start of phase",
 )
-@click.option("--warmup", default=0, help="0 if in sampling, 1 if in warmup phase")
+@click.option(
+    "--warmup", default=0, help="0 if in sampling, 1 if in warmup phase"
+)
 def generate_inits_command(data_path, chain, draw, warmup):
     """Run the generate_inits function as a click command."""
-    click.echo(generate_inits(data_path, chain, draw, warmup))
-
-    
+    output_name = "generated_inits.csv"
+    output_path = os.path.join(data_path, output_name)
+    idata = az.InferenceData.from_netcdf(os.path.join(data_path, "idata.nc"))
+    mi = load_maud_input(os.path.join(data_path, "user_input"))
+    click.echo("Creating inits table")
+    inits = generate_inits(idata, mi, chain, draw, warmup)
+    click.echo(f"Saving inits table to: {output_path}")
+    inits.to_csv(output_path)
+    click.echo("Successfully generated inits csv")
