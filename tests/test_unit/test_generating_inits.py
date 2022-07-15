@@ -1,3 +1,4 @@
+"""Test the generating_inits module."""
 import os
 
 import arviz as az
