@@ -5,6 +5,7 @@ import click
 from maud.loading_maud_inputs import load_maud_input
 
 from maudtools.fetching_dgf_priors import fetch_dgf_priors_from_equilibrator
+from maudtools.generate_inits import generate_inits
 
 
 @click.group()
@@ -56,3 +57,25 @@ def fetch_dgf_priors(
     mu.to_csv(file_mean)
     cov.to_csv(file_cov)
     click.echo(f"Wrote files {file_mean} and {file_cov}.")
+
+
+@cli.command("generate-inits")
+@click.argument(
+    "data_path",
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+)
+@click.option("--chain",
+    default=0,
+    help="Sampling chain using python indexing"
+)
+@click.option(
+    "--draw",
+    default=0,
+    help="Sampling draw using python indexing from start of phase",
+)
+@click.option("--warmup", default=0, help="0 if in sampling, 1 if in warmup phase")
+def generate_inits_command(data_path, chain, draw, warmup):
+    """Run the generate_inits function as a click command."""
+    click.echo(generate_inits(data_path, chain, draw, warmup))
+
+    
