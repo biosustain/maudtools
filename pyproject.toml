@@ -5,7 +5,7 @@ requires = [
 ]
 
 [tool.black]
-line-length = 88
+line-length = 80
 python-version = ['py38', 'py39', 'py310']
 exclude = '''
 (
@@ -13,12 +13,3 @@ exclude = '''
     | _version.py
 )
 '''
-
-[tool.pyright]
-reportMissingImports = true
-reportMissingTypeStubs = false
-disableOrganizeImports = false
-useLibraryCodeForTypes = true
-venv_path ="~/.venvs"
-venv = "maudtools"
-pythonPlatform = "Darwin"
