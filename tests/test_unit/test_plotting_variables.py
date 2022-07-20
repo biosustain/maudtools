@@ -4,7 +4,6 @@ import arviz
 import pytest
 from maud.data_model.stan_variable_set import (
     ConcEnzyme,
-    ConcPme,
     ConcUnbalanced,
     Dgf,
     Drain,
