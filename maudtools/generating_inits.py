@@ -44,7 +44,11 @@ def generate_inits(
                 if sv.split_ids is not None
                 else pd.Index(sv.ids[1], name=col_ix_names[0])
             )
-            param_df = param_df.stack().rename("value").reset_index()
+            param_df = (
+                param_df.stack(level=param_df.columns.names)
+                .rename("value")
+                .reset_index()
+            )
         else:
             ix_names = [idc.value for idc in sv.id_components[0]]
             ixs = sv.split_ids if sv.split_ids is not None else [sv.ids[0]]
