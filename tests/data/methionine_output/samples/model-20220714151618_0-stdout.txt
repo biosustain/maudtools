@@ -1,0 +1,37 @@
+method = sample (Default)
+  sample
+    num_samples = 1
+    num_warmup = 0
+    save_warmup = 0 (Default)
+    thin = 1 (Default)
+    adapt
+      engaged = 1 (Default)
+      gamma = 0.050000000000000003 (Default)
+      delta = 0.80000000000000004 (Default)
+      kappa = 0.75 (Default)
+      t0 = 10 (Default)
+      init_buffer = 75 (Default)
+      term_buffer = 50 (Default)
+      window = 25 (Default)
+    algorithm = fixed_param
+    num_chains = 1 (Default)
+id = 1 (Default)
+data
+  file = ./maud_output_sim-methionine_cycle_6-20220714151618/samples/input_data_train.json
+init = ./maud_output_sim-methionine_cycle_6-20220714151618/samples/inits.json
+random
+  seed = 67273
+output
+  file = /Users/nicow/Maud/maud_output_sim-methionine_cycle_6-20220714151618/samples/model-20220714151618.csv
+  diagnostic_file =  (Default)
+  refresh = 100 (Default)
+  sig_figs = -1 (Default)
+  profile_file = profile.csv (Default)
+num_threads = 1 (Default)
+
+Iteration: 1 / 1 [100%]  (Sampling)
+
+ Elapsed Time: 0 seconds (Warm-up)
+               0.009 seconds (Sampling)
+               0.009 seconds (Total)
+
