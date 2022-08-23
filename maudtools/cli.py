@@ -62,7 +62,6 @@ def fetch_dgf_priors(
     click.echo(f"Wrote files {file_mean} and {file_cov}.")
 
 
-<<<<<<< HEAD
 @cli.command()
 @click.argument(
     "maud_output_dir",
@@ -102,7 +101,6 @@ def generate_yaml(
         experiment = next(experiment.id for experiment in mi.experiments)
     parameter_values = get_inits_gg
     
-=======
 @cli.command("generate-inits")
 @click.argument(
     "data_path",
@@ -128,4 +126,3 @@ def generate_inits_command(data_path, chain, draw, warmup):
     click.echo(f"Saving inits table to: {output_path}")
     inits.to_csv(output_path)
     click.echo("Successfully generated inits csv")
->>>>>>> origin/master
