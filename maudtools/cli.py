@@ -85,7 +85,7 @@ def fetch_dgf_priors(
     default=None,
     help="Id of an experiment",
 )
-def generate_yaml(
+def generate_yaml_command(
     maud_output_dir: str, chain: int, draw: int, warmup: bool, experiment: Optional[str]
 ):
     sample_dir = os.path.join(maud_output_dir, "samples")
@@ -99,8 +99,10 @@ def generate_yaml(
     idata = get_idata(csvs, mi, "train")
     if experiment is None:
         experiment = next(experiment.id for experiment in mi.experiments)
-    parameter_values = get_inits_gg
+    yaml = generate_yaml(idata, mi, chain, draw, warmup)
+
     
+
 @cli.command("generate-inits")
 @click.argument(
     "data_path",
