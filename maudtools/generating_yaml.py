@@ -88,6 +88,7 @@ def get_parameters_block(parameter_df: pd.DataFrame) -> str:
         out += TEMPLATE_PARAMETER.format(
             parameter_id=pid, nominal_value=f"{nv:.12f}"
         )
+    out += TEMPLATE_PARAMETER.format(parameter_id="zero", nominal_value="0")
     return out
 
 
@@ -307,7 +308,7 @@ def get_free_enzyme_ratio(
             for conc_expr, ki_expr in zip(ci_conc_exprs, ki_exprs)
         )
     else:
-        denom_ci_cpt = "0"
+        denom_ci_cpt = "zero"
     if reaction.mechanism == ReactionMechanism.REVERSIBLE_MICHAELIS_MENTEN:
         prod_ids = list(k for k, v in reaction.stoichiometry.items() if v > 0)
         prod_km_ids = [ID_SEPARATOR.join([enzyme.id, p]) for p in prod_ids]
@@ -323,7 +324,7 @@ def get_free_enzyme_ratio(
             + "-1"
         )
     else:
-        denom_prod_cpt = "0"
+        denom_prod_cpt = "zero"
     return f"1/(({denom_sub_cpt})+({denom_ci_cpt})+({denom_prod_cpt}))"
 
 
