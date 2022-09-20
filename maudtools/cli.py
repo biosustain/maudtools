@@ -4,11 +4,12 @@ from typing import Optional
 
 import arviz as az
 import click
-from maud.loading_maud_inputs import load_maud_input
 from maud.getting_idatas import get_idata
+from maud.loading_maud_inputs import load_maud_input
 
 from maudtools.fetching_dgf_priors import fetch_dgf_priors_from_equilibrator
 from maudtools.generating_inits import generate_inits
+from maudtools.generating_yaml import generate_yaml
 
 
 @click.group()
@@ -62,7 +63,7 @@ def fetch_dgf_priors(
     click.echo(f"Wrote files {file_mean} and {file_cov}.")
 
 
-@cli.command()
+@cli.command("generate-yaml")
 @click.argument(
     "maud_output_dir",
     type=click.Path(exists=True, dir_okay=True, file_okay=False),
@@ -79,15 +80,22 @@ def fetch_dgf_priors(
     type=int,
     help="MCMC draw number",
 )
-@click.option("--warmup", is_flag=True, help="If draw is in warmup phase or not")
+@click.option(
+    "--warmup", is_flag=True, help="If draw is in warmup phase or not"
+)
 @click.option(
     "--experiment",
     default=None,
     help="Id of an experiment",
 )
 def generate_yaml_command(
-    maud_output_dir: str, chain: int, draw: int, warmup: bool, experiment: Optional[str]
+    maud_output_dir: str,
+    chain: int,
+    draw: int,
+    warmup: bool,
+    experiment: Optional[str],
 ):
+    """Get inputs for the generate_yaml function and run it."""
     sample_dir = os.path.join(maud_output_dir, "samples")
     maud_input_dir = os.path.join(maud_output_dir, "user_input")
     csvs = [
@@ -98,10 +106,16 @@ def generate_yaml_command(
     mi = load_maud_input(maud_input_dir)
     idata = get_idata(csvs, mi, "train")
     if experiment is None:
-        experiment = next(experiment.id for experiment in mi.experiments)
-    yaml = generate_yaml(idata, mi, chain, draw, warmup)
+        experiment = next(
+            experiment.id for experiment in mi.measurements.experiments
+        )
+    file_name = f"ch{chain}-dr{draw}-wu{warmup}-ex{experiment}.yml"
+    file_out = os.path.join(maud_output_dir, file_name)
+    yaml = generate_yaml(idata, mi, experiment, chain, draw, warmup)
+    with open(file_out, "w") as f:
+        f.writelines(yaml)
+    print(f"Yaml file generated and written to {file_out}.")
 
-    
 
 @cli.command("generate-inits")
 @click.argument(
