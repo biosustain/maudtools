@@ -1,13 +1,13 @@
-"""Provides the function generate_yaml.
+"""Provides the function generate_sbml.
 
 This function takes in an InferenceData, MaudInput, chain, draw and experiment
-and returns a string that can be parsed by yaml2sbml in order to create an SBML
-file.
+and returns an SBML file in string format.
 
 """
-from typing import List
+from typing import List, Tuple
 
 import arviz as az
+import libsbml as sbml
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -17,7 +17,7 @@ from maud.data_model.kinetic_model import (KineticModel, ModificationType,
                                            Reaction, ReactionMechanism)
 from maud.data_model.maud_input import MaudInput  # type: ignore
 from maud.getting_stan_inputs import get_conc_init  # type: ignore
-
+import warnings
 SBML_VARS = [
     "dgrs",
     "drain",
@@ -31,30 +31,131 @@ SBML_VARS = [
 ]
 
 
-TEMPLATE_PARAMETER = """
-    - parameterId: {parameter_id}
-      nominalValue: {nominal_value}
-"""
-TEMPLATE_ODE = """
-    - stateId: {state_id}
-      rightHandSide: {rhs}
-      initialValue: {initial_value}
-"""
+def initialise_model(mi: MaudInput) -> Tuple[sbml.SBMLDocument, sbml.Model]:
+    """Generate sbml document and model and add basic info from maud input."""
+    doc = sbml.SBMLDocument(3, 1)
+    model = doc.createModel()
+    model.setId(mi.config.name)
+    model.setName(mi.config.name)
+    for maud_cpt in mi.kinetic_model.compartments:
+        cpt = model.createCompartment()
+        cpt.setId(maud_cpt.id)
+        cpt.setConstant(True)
+        cpt.setSize(maud_cpt.volume)
+    return doc, model
 
 
-def generate_yaml(
+def add_parameters_to_model(model: sbml.Model, param_df: pd.DataFrame):
+    """Add parameters to an sbml model from a dataframe."""
+    zero = model.createParameter()
+    zero.setId("zero")
+    zero.setName("zero")
+    zero.setConstant(True)
+    zero.setValue(0)
+    for _, row in param_df.iterrows():
+        param = model.createParameter()
+        pid, pval = row["pid"], row["value"]
+        if param.setId(pid) != sbml.LIBSBML_OPERATION_SUCCESS:
+            raise RuntimeError(f"Unable to generate parameter with id {pid}.")
+        param.setName(pid)
+        param.setConstant(True)
+        param.setValue(pval)
+
+
+def add_species_to_model(model: sbml.Model, mi: MaudInput, experiment_ix: int):
+    """Add species to a model with initial concs from an experiment."""
+    conc_init = mi.stan_input_train.conc_init.value
+    balanced_mics = [mic for mic in mi.kinetic_model.mics if mic.balanced]
+    for mic, conc in zip(balanced_mics, conc_init[experiment_ix]):
+        spid = "s" + mic.id.replace("_", "")
+        sp = model.createSpecies()
+        sp.setCompartment(mic.compartment_id)
+        sp.setId(spid)
+        sp.setName(spid)
+        sp.setInitialAmount(conc)
+
+
+def add_reactions_to_model(
+    model: sbml.Model, mi: MaudInput, param_df: pd.DataFrame, temperature: float
+):
+    """Add reactions to an sbml model."""
+    for edge in mi.kinetic_model.edges:
+        maud_rxn_id = edge.reaction_id if isinstance(edge, EnzymeReaction) else edge.id
+        maud_rxn = next(
+            r for r in mi.kinetic_model.reactions if r.id == maud_rxn_id
+        )
+        sbml_rxn_id = "r" + edge.id.replace("_", "")
+        sbml_rxn = model.createReaction()
+        sbml_rxn.setId(sbml_rxn_id)
+        for mic_id, stoic in maud_rxn.stoichiometry.items():
+            mic = next(m for m in mi.kinetic_model.mics if m.id == mic_id)
+            spid = "s" + mic.id.replace("_", "")
+            if mic.balanced and stoic < 0:
+                spr = sbml_rxn.createReactant()
+                spr.setSpecies(spid)
+            elif mic.balanced and stoic > 0:
+                spr = sbml_rxn.createProduct()
+                spr.setSpecies(spid)
+        # handle modifiers
+        for mic in filter(lambda m: m.balanced, mi.kinetic_model.mics):
+            spid = "s" + mic.id.replace("_", "")
+            for ci in mi.kinetic_model.competitive_inhibitions:
+                if ci.mic_id == mic.id:
+                    mfr = sbml_rxn.createModifier()
+                    mfr.setSpecies(spid)
+            for al in mi.kinetic_model.allosteries:
+                if al.mic_id == mic.id:
+                    mfr = sbml_rxn.createModifier()
+                    mfr.setSpecies(spid)
+        kl = sbml_rxn.createKineticLaw()
+        flux_expr = get_edge_flux(param_df, mi, edge.id, temperature)
+        math_ast = sbml.parseL3Formula(flux_expr)
+        if math_ast is None:
+            raise RuntimeError(
+                f"Unable to generate flux expression for reaction {sbml_rxn_id}"
+            )
+        kl.setMath(math_ast)
+
+
+def generate_sbml(
     idata: az.InferenceData,
     mi: MaudInput,
-    experiment: str,
+    experiment_id: str,
     chain: int,
     draw: int,
     warmup: int,
 ) -> str:
     """Run the main function of this module."""
     posterior = idata.posterior if not warmup else idata.warmup_posterior  # type: ignore
-    draw = posterior.sel(chain=chain, draw=draw, experiments=experiment)
+    draw = posterior.sel(chain=chain, draw=draw, experiments=experiment_id)
     assert isinstance(draw, xr.Dataset)
-    parameter_df = (  # dataframe with columns for parameter, id and value
+    param_df = get_parameter_df(draw)
+    experiment_ix, experiment = next(
+        (i, exp)
+        for i, exp in enumerate(mi.measurements.experiments)
+        if exp.id == experiment_id
+    )
+    doc, model = get_initial_model(mi)
+    add_parameters_to_model(model, param_df)
+    add_species_to_model(model, mi, experiment_ix)
+    add_reactions_to_model(model, mi, param_df, experiment.temperature)
+
+    doc.setConsistencyChecks(sbml.LIBSBML_CAT_UNITS_CONSISTENCY, False)
+
+    if doc.checkConsistency():
+
+        for error_num in range(doc.getErrorLog().getNumErrors()):
+            if not doc.getErrorLog().getError(error_num).isWarning():
+                warnings.warn(
+                    doc.getErrorLog().getError(error_num).getMessage(),
+                    RuntimeWarning)
+
+    return sbml.writeSBMLToString(doc)
+
+
+def get_parameter_df(draw: xr.Dataset) -> pd.DataFrame:
+    """Get a dataframe of parameter ids and values."""
+    return (
         pd.concat(
             {
                 v: draw[v].to_series().rename("value")  # type: ignore
@@ -72,76 +173,6 @@ def generate_yaml(
             .str.cat(df["id"].str.replace("-", "").str.replace("_", ""))
         )
     )
-    return (
-        "time:\n    variable: t\n"
-        + get_parameters_block(parameter_df)
-        + get_odes_block(parameter_df, mi, experiment)  # type: ignore
-    )
-
-
-def get_parameters_block(parameter_df: pd.DataFrame) -> str:
-    """Get the parameters block of the yaml output."""
-    out = "\nparameters:"
-    for _, row in parameter_df.iterrows():
-        pid = row["pid"]
-        nv = row["value"]
-        out += TEMPLATE_PARAMETER.format(
-            parameter_id=pid, nominal_value=f"{nv:.12f}"
-        )
-    out += TEMPLATE_PARAMETER.format(parameter_id="zero", nominal_value="0")
-    return out
-
-
-def get_odes_block(
-    parameter_df: pd.DataFrame, mi: MaudInput, experiment_id: str
-) -> str:
-    """Get the odes block of the yaml output.
-
-    Each ode is a yaml table with fields "stateId", "rightHandSide" and
-    "initialValue".
-
-    """
-    balanced_mics = [m for m in mi.kinetic_model.mics if m.balanced]
-    balanced_mic_ix = [i for i, m in enumerate(mi.kinetic_model.mics) if m.balanced]
-    out = "\nodes:\n"
-    experiment_ix, experiment = next(
-        (i, exp)
-        for i, exp in enumerate(mi.measurements.experiments)
-        if exp.id == experiment_id
-    )
-    initial_concs = get_conc_init(
-        mi.measurements, mi.kinetic_model, mi.priors, mi.config, "train"
-    ).value[experiment_ix]
-    for i, mic in zip(balanced_mic_ix, balanced_mics):
-        state_id = "state" + mic.id.replace("-", "")
-        rhs = get_ode_rhs(parameter_df, mi, mic.id, experiment.temperature)
-        initial_value = initial_concs[i]
-        out += TEMPLATE_ODE.format(
-            state_id=state_id, rhs=rhs, initial_value=initial_value
-        )
-    return out
-
-
-def get_ode_rhs(
-    parameter_df: pd.DataFrame, mi: MaudInput, mic_id: str, temperature: float
-) -> str:
-    """Get the right hand side of an ODE."""
-    flux_expressions: List = []
-    for edge in mi.kinetic_model.edges:
-        rxn = (
-            edge
-            if isinstance(edge, Reaction)
-            else next(
-                r
-                for r in mi.kinetic_model.reactions
-                if r.id == edge.reaction_id
-            )
-        )
-        if mic_id in rxn.stoichiometry.keys():
-            stoic = rxn.stoichiometry[mic_id]
-            flux = get_edge_flux(parameter_df, mi, edge.id, temperature)
-            flux_expressions.append(f"({str(stoic)}*{flux})")
-    return "+".join(flux_expressions)
 
 
 def get_edge_flux(
@@ -150,21 +181,30 @@ def get_edge_flux(
     """Get the flux for an edge."""
     edge = next(e for e in mi.kinetic_model.edges if e.id == edge_id)
     if isinstance(edge, Reaction):
-        return get_drain_flux(parameter_df, mi.kinetic_model, edge, mi.config.drain_small_conc_corrector)
+        return get_drain_flux(
+            parameter_df,
+            mi.kinetic_model,
+            edge,
+            mi.config.drain_small_conc_corrector,
+        )
     elif isinstance(edge, EnzymeReaction):
         return get_enzyme_reaction_flux(parameter_df, mi, edge, temperature)
     else:
         raise ValueError("Input must be either a Reaction or an EnzymeReactoin")
 
 
-def get_drain_flux(param_df: pd.DataFrame, km: KineticModel, drain: Reaction, corrector: float) -> str:
+def get_drain_flux(
+    param_df: pd.DataFrame, km: KineticModel, drain: Reaction, corrector: float
+) -> str:
     """Get an expression for the flux for a drain edge."""
     drain_val = lookup_param(param_df, "drain", [drain.id])["pid"].iloc[0]
     sub_ids = list(k for k, v in drain.stoichiometry.items() if v < 0)
     if len(sub_ids) == 0:
         return f"({drain_val})"
     sub_conc_exprs = get_conc_expressions(param_df, km, sub_ids)
-    corrector_cpts = [f"({conc}/({conc}+{str(corrector)}))" for conc in sub_conc_exprs]
+    corrector_cpts = [
+        f"({conc}/({conc}+{str(corrector)}))" for conc in sub_conc_exprs
+    ]
     corrector_term = "*".join(corrector_cpts)
     return f"({drain_val}*({corrector_term}))"
 
@@ -269,7 +309,7 @@ def get_conc_expressions(
     """
     balanced_mic_ids = [m.id for m in km.mics if m.balanced]
     return [
-        "state" + mic_id.replace("-", "")
+        "s" + mic_id.replace("-", "").replace("_", "")
         if mic_id in balanced_mic_ids
         else "pconcunbalanced" + mic_id.replace("-", "").replace("_", "")
         for mic_id in mic_ids
