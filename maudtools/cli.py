@@ -4,13 +4,14 @@ from typing import Optional
 
 import arviz as az
 import click
-from maud.getting_idatas import get_idata
-from maud.loading_maud_inputs import load_maud_input
+from maud.getting_idatas import get_idata  # type: ignore
+from maud.loading_maud_inputs import load_maud_input  # type: ignore
 
 from maudtools.fetching_dgf_priors import fetch_dgf_priors_from_equilibrator
 from maudtools.generating_inits import generate_inits
 from maudtools.generating_sbml import generate_sbml
-import libsbml as sbml
+import libsbml as sbml  # type: ignore
+
 
 @click.group()
 @click.help_option("--help", "-h")
@@ -111,11 +112,9 @@ def generate_sbml_command(
         )
     file_name = f"ch{chain}-dr{draw}-wu{warmup}-ex{experiment}.xml"
     file_out = os.path.join(maud_output_dir, file_name)
-    sbml_doc = generate_sbml(idata, mi, experiment, chain, draw, warmup)
+    sbml_doc, sbml_model = generate_sbml(idata, mi, experiment, chain, draw, warmup)
     with open(file_out, "w") as f:
-        f.write(sbml_doc)
-
-
+        f.write(sbml.writeSBMLToString(sbml_doc))
 
 @cli.command("generate-inits")
 @click.argument(

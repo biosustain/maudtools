@@ -4,10 +4,11 @@ This function takes in an InferenceData, MaudInput, chain, draw and experiment
 and returns an SBML file in string format.
 
 """
+import warnings
 from typing import List, Tuple
 
 import arviz as az
-import libsbml as sbml
+import libsbml as sbml  # type: ignore
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -16,8 +17,7 @@ from maud.data_model.kinetic_model import EnzymeReaction  # type:ignore
 from maud.data_model.kinetic_model import (KineticModel, ModificationType,
                                            Reaction, ReactionMechanism)
 from maud.data_model.maud_input import MaudInput  # type: ignore
-from maud.getting_stan_inputs import get_conc_init  # type: ignore
-import warnings
+
 SBML_VARS = [
     "dgrs",
     "drain",
@@ -29,6 +29,42 @@ SBML_VARS = [
     "conc_unbalanced",
     "conc_enzyme",
 ]
+
+
+def generate_sbml(
+    idata: az.InferenceData,
+    mi: MaudInput,
+    experiment_id: str,
+    chain: int,
+    draw: int,
+    warmup: int,
+) -> Tuple[sbml.SBMLDocument, sbml.Model]:
+    """Run the main function of this module."""
+    posterior = idata.posterior if not warmup else idata.warmup_posterior  # type: ignore
+    draw = posterior.sel(chain=chain, draw=draw, experiments=experiment_id)
+    assert isinstance(draw, xr.Dataset)
+    param_df = get_parameter_df(draw)
+    experiment_ix, experiment = next(
+        (i, exp)
+        for i, exp in enumerate(mi.measurements.experiments)
+        if exp.id == experiment_id
+    )
+    doc, model = initialise_model(mi)
+    add_parameters_to_model(model, param_df)
+    add_species_to_model(model, mi, experiment_ix)
+    add_reactions_to_model(model, mi, param_df, experiment.temperature)
+
+    doc.setConsistencyChecks(sbml.LIBSBML_CAT_UNITS_CONSISTENCY, False)
+
+    if doc.checkConsistency():
+
+        for error_num in range(doc.getErrorLog().getNumErrors()):
+            if not doc.getErrorLog().getError(error_num).isWarning():
+                warnings.warn(
+                    doc.getErrorLog().getError(error_num).getMessage(),
+                    RuntimeWarning,
+                )
+    return doc, model
 
 
 def initialise_model(mi: MaudInput) -> Tuple[sbml.SBMLDocument, sbml.Model]:
@@ -65,14 +101,16 @@ def add_parameters_to_model(model: sbml.Model, param_df: pd.DataFrame):
 def add_species_to_model(model: sbml.Model, mi: MaudInput, experiment_ix: int):
     """Add species to a model with initial concs from an experiment."""
     conc_init = mi.stan_input_train.conc_init.value
-    balanced_mics = [mic for mic in mi.kinetic_model.mics if mic.balanced]
-    for mic, conc in zip(balanced_mics, conc_init[experiment_ix]):
+    balanced_mic_ix, balanced_mics = zip(
+        *[(i, m) for i, m in enumerate(mi.kinetic_model.mics) if m.balanced]
+    )
+    for i, mic in zip(balanced_mic_ix, balanced_mics):
         spid = "s" + mic.id.replace("_", "")
         sp = model.createSpecies()
         sp.setCompartment(mic.compartment_id)
         sp.setId(spid)
         sp.setName(spid)
-        sp.setInitialAmount(conc)
+        sp.setInitialAmount(conc_init[experiment_ix][i])
 
 
 def add_reactions_to_model(
@@ -80,7 +118,9 @@ def add_reactions_to_model(
 ):
     """Add reactions to an sbml model."""
     for edge in mi.kinetic_model.edges:
-        maud_rxn_id = edge.reaction_id if isinstance(edge, EnzymeReaction) else edge.id
+        maud_rxn_id = (
+            edge.reaction_id if isinstance(edge, EnzymeReaction) else edge.id
+        )
         maud_rxn = next(
             r for r in mi.kinetic_model.reactions if r.id == maud_rxn_id
         )
@@ -115,42 +155,6 @@ def add_reactions_to_model(
                 f"Unable to generate flux expression for reaction {sbml_rxn_id}"
             )
         kl.setMath(math_ast)
-
-
-def generate_sbml(
-    idata: az.InferenceData,
-    mi: MaudInput,
-    experiment_id: str,
-    chain: int,
-    draw: int,
-    warmup: int,
-) -> str:
-    """Run the main function of this module."""
-    posterior = idata.posterior if not warmup else idata.warmup_posterior  # type: ignore
-    draw = posterior.sel(chain=chain, draw=draw, experiments=experiment_id)
-    assert isinstance(draw, xr.Dataset)
-    param_df = get_parameter_df(draw)
-    experiment_ix, experiment = next(
-        (i, exp)
-        for i, exp in enumerate(mi.measurements.experiments)
-        if exp.id == experiment_id
-    )
-    doc, model = get_initial_model(mi)
-    add_parameters_to_model(model, param_df)
-    add_species_to_model(model, mi, experiment_ix)
-    add_reactions_to_model(model, mi, param_df, experiment.temperature)
-
-    doc.setConsistencyChecks(sbml.LIBSBML_CAT_UNITS_CONSISTENCY, False)
-
-    if doc.checkConsistency():
-
-        for error_num in range(doc.getErrorLog().getNumErrors()):
-            if not doc.getErrorLog().getError(error_num).isWarning():
-                warnings.warn(
-                    doc.getErrorLog().getError(error_num).getMessage(),
-                    RuntimeWarning)
-
-    return sbml.writeSBMLToString(doc)
 
 
 def get_parameter_df(draw: xr.Dataset) -> pd.DataFrame:
