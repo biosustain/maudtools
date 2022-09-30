@@ -4,13 +4,13 @@ from typing import Optional
 
 import arviz as az
 import click
+import libsbml as sbml  # type: ignore
 from maud.getting_idatas import get_idata  # type: ignore
 from maud.loading_maud_inputs import load_maud_input  # type: ignore
 
 from maudtools.fetching_dgf_priors import fetch_dgf_priors_from_equilibrator
 from maudtools.generating_inits import generate_inits
 from maudtools.generating_sbml import generate_sbml
-import libsbml as sbml  # type: ignore
 
 
 @click.group()
@@ -112,9 +112,12 @@ def generate_sbml_command(
         )
     file_name = f"ch{chain}-dr{draw}-wu{warmup}-ex{experiment}.xml"
     file_out = os.path.join(maud_output_dir, file_name)
-    sbml_doc, sbml_model = generate_sbml(idata, mi, experiment, chain, draw, warmup)
+    sbml_doc, sbml_model = generate_sbml(
+        idata, mi, experiment, chain, draw, warmup
+    )
     with open(file_out, "w") as f:
         f.write(sbml.writeSBMLToString(sbml_doc))
+
 
 @cli.command("generate-inits")
 @click.argument(
@@ -137,7 +140,9 @@ def generate_inits_command(data_path, chain, draw, warmup):
     idata_file = os.path.join(data_path, "idata.nc")
     if not os.path.exists(idata_file):
         idata_file = os.path.join(data_path, f"idata-chain{chain+1}.nc")
-    assert os.path.exists(idata_file), f"Directory {data_path} contains no idata file."
+    assert os.path.exists(
+        idata_file
+    ), f"Directory {data_path} contains no idata file."
     idata = az.InferenceData.from_netcdf(idata_file)
     mi = load_maud_input(os.path.join(data_path, "user_input"))
     click.echo("Creating inits table")
@@ -159,9 +164,13 @@ def rescue_idata(data_path, chain):
     input_dir = os.path.join(data_path, "user_input")
     csv_dir = os.path.join(data_path, "samples")
     end_pattern = f"{chain}.csv"
-    csv_filename = next(f for f in os.listdir(csv_dir) if f.endswith(end_pattern))
+    csv_filename = next(
+        f for f in os.listdir(csv_dir) if f.endswith(end_pattern)
+    )
     csv_file = os.path.join(csv_dir, csv_filename)
-    assert os.path.exists(csv_file), f"No file in directory {csv_dir} ends with {end_pattern}"
+    assert os.path.exists(
+        csv_file
+    ), f"No file in directory {csv_dir} ends with {end_pattern}"
     mi = load_maud_input(data_path=input_dir)
     idata = get_idata([csv_file], mi, "train")
     idata.to_netcdf(output_file)

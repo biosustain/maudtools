@@ -30,9 +30,13 @@ def test_generate_sbml():
     expected_formula = (
         "pconcenzymeAHC1"
         " * pkcatAHC1"
-        " * (1 - exp((pdgrsAHC1AHC + 2.4788191 * (-1 * log(sahcysc) + 1 * log(pconcunbalancedadnc) + 1 * log(shcysLc))) / 2.4788191))"
+        " * (1 - exp((pdgrsAHC1AHC + 2.4788191 * "
+        "(-1 * log(sahcysc) + 1 * log(pconcunbalancedadnc) + 1 * log(shcysLc)))"
+        " / 2.4788191))"
         " * sahcysc / pkmAHC1ahcysc"
-        " * 1 / ((1 + sahcysc / pkmAHC1ahcysc)^1 + zero + ((1 + pconcunbalancedadnc / pkmAHC1adnc)^1 * (1 + shcysLc / pkmAHC1hcysLc)^1 - 1))"
+        " * 1 / ((1 + sahcysc / pkmAHC1ahcysc)^1 + zero +"
+        " ((1 + pconcunbalancedadnc / pkmAHC1adnc)^1 * (1 + shcysLc / pkmAHC1hcysLc)^1"
+        " - 1))"
         " * 1"
         " * 1"
     )
