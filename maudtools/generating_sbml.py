@@ -105,7 +105,7 @@ def add_species_to_model(model: sbml.Model, mi: MaudInput, experiment_ix: int):
         *[(i, m) for i, m in enumerate(mi.kinetic_model.mics) if m.balanced]
     )
     for i, mic in zip(balanced_mic_ix, balanced_mics):
-        spid = "s" + mic.id.replace("_", "")
+        spid = "s" + mic.id.replace("_", "").replace("-", "")
         sp = model.createSpecies()
         sp.setCompartment(mic.compartment_id)
         sp.setId(spid)
@@ -124,12 +124,12 @@ def add_reactions_to_model(
         maud_rxn = next(
             r for r in mi.kinetic_model.reactions if r.id == maud_rxn_id
         )
-        sbml_rxn_id = "r" + edge.id.replace("_", "")
+        sbml_rxn_id = "r" + edge.id.replace("_", "").replace("-", "")
         sbml_rxn = model.createReaction()
         sbml_rxn.setId(sbml_rxn_id)
         for mic_id, stoic in maud_rxn.stoichiometry.items():
             mic = next(m for m in mi.kinetic_model.mics if m.id == mic_id)
-            spid = "s" + mic.id.replace("_", "")
+            spid = "s" + mic.id.replace("_", "").replace("-", "")
             if mic.balanced and stoic < 0:
                 spr = sbml_rxn.createReactant()
                 spr.setSpecies(spid)
@@ -138,7 +138,7 @@ def add_reactions_to_model(
                 spr.setSpecies(spid)
         # handle modifiers
         for mic in filter(lambda m: m.balanced, mi.kinetic_model.mics):
-            spid = "s" + mic.id.replace("_", "")
+            spid = "s" + mic.id.replace("_", "").replace("-", "")
             for ci in mi.kinetic_model.competitive_inhibitions:
                 if ci.mic_id == mic.id:
                     mfr = sbml_rxn.createModifier()
