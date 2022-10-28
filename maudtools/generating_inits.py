@@ -25,12 +25,13 @@ def generate_inits(
     or sampling phase
 
     """
-    idata_draw = idata.posterior.sel(chain=chain, draw=draw)
+    posterior = idata.warmup_posterior if warmup == 1 else idata.posterior
+    idata_draw = posterior.sel(chain=chain, draw=draw)
     training_experiments = [
         e.id for e in mi.measurements.experiments if e.is_train
     ]
     out = pd.DataFrame()
-    params = set(idata.posterior.variables.keys()).intersection(
+    params = set(posterior.variables.keys()).intersection(
         set(dir(mi.stan_variable_set))
     )
     for param in params:
