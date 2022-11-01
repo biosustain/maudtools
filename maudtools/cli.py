@@ -3,10 +3,13 @@ import os
 
 import arviz as az
 import click
+import toml
 from maud.loading_maud_inputs import load_maud_input
+from maud.parsing_kinetic_models import parse_kinetic_model
 
 from maudtools.fetching_dgf_priors import fetch_dgf_priors_from_equilibrator
 from maudtools.generating_inits import generate_inits
+from maudtools.generating_priors import generate_prior_template
 
 
 @click.group()
@@ -85,3 +88,22 @@ def generate_inits_command(data_path, chain, draw, warmup):
     click.echo(f"Saving inits table to: {output_path}")
     inits.to_csv(output_path)
     click.echo("Successfully generated inits csv")
+
+
+@cli.command("generate-prior-template")
+@click.argument(
+    "data_path",
+    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+)
+def generate_prior_template_command(data_path):
+    """Run the generate_prior_template function as a click command."""
+    output_name = "prior_template.csv"
+    output_path = os.path.join(data_path, output_name)
+    config = toml.load(os.path.join(data_path, "config.toml"))
+    km_toml = toml.load(os.path.join(data_path, config["kinetic_model_file"]))
+    km = parse_kinetic_model(km_toml)
+    click.echo("Creating prior template")
+    prior_template = generate_prior_template(km)
+    click.echo(f"Saving prior template to: {output_path}")
+    prior_template.to_csv(output_path, index=False)
+    click.echo("Successfully generated prior template")
