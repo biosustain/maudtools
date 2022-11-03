@@ -6,6 +6,10 @@ import click
 import toml
 from maud.loading_maud_inputs import load_maud_input
 from maud.parsing_kinetic_models import parse_kinetic_model
+from maud.parsing_measurements import parse_measurement_set
+from maud.parsing_configs import parse_config
+from maud.getting_stan_variables import get_stan_variable_set
+from maud.utils import load_df
 
 from maudtools.fetching_dgf_priors import fetch_dgf_priors_from_equilibrator
 from maudtools.generating_inits import generate_inits
@@ -99,11 +103,22 @@ def generate_prior_template_command(data_path):
     """Run the generate_prior_template function as a click command."""
     output_name = "prior_template.csv"
     output_path = os.path.join(data_path, output_name)
-    config = toml.load(os.path.join(data_path, "config.toml"))
-    km_toml = toml.load(os.path.join(data_path, config["kinetic_model_file"]))
+    # get config
+    config_path = os.path.join(data_path, "config.toml")
+    config = parse_config(toml.load(config_path))
+    kinetic_model_path = os.path.join(data_path, config.kinetic_model_file)
+    bio_config_path = os.path.join(data_path, config.experimental_setup_file)
+    raw_bio_config = toml.load(bio_config_path)
+    measurements_path = os.path.join(data_path, config.measurements_file)
+    raw_bio_config = toml.load(bio_config_path)
+    measurements_path = os.path.join(data_path, config.measurements_file)
+    raw_measurements = load_df(measurements_path)
+    km_toml = toml.load(kinetic_model_path)
     km = parse_kinetic_model(km_toml)
+    measurement_set = parse_measurement_set(raw_measurements, raw_bio_config)
+    stan_variable_set = get_stan_variable_set(km, measurement_set)
     click.echo("Creating prior template")
-    prior_template = generate_prior_template(km)
+    prior_template = generate_prior_template(stan_variable_set)
     click.echo(f"Saving prior template to: {output_path}")
     prior_template.to_csv(output_path, index=False)
     click.echo("Successfully generated prior template")
