@@ -19,15 +19,15 @@ from maud.data_model.kinetic_model import (KineticModel, ModificationType,
 from maud.data_model.maud_input import MaudInput  # type: ignore
 
 SBML_VARS = [
-    "dgrs",
-    "drain",
+    "dgr_train",
+    "drain_train",
     "kcat",
     "km",
     "ki",
     "dissociation_constant",
     "transfer_constant",
-    "conc_unbalanced",
-    "conc_enzyme",
+    "conc_unbalanced_train",
+    "conc_enzyme_train",
 ]
 
 
@@ -38,33 +38,47 @@ def generate_sbml(
     chain: int,
     draw: int,
     warmup: int,
-) -> Tuple[sbml.SBMLDocument, sbml.Model]:
+) -> Tuple[sbml.SBMLDocument, sbml.Model, pd.DataFrame]:
     """Run the main function of this module."""
     posterior = idata.posterior if not warmup else idata.warmup_posterior  # type: ignore
     draw = posterior.sel(chain=chain, draw=draw, experiments=experiment_id)
     assert isinstance(draw, xr.Dataset)
     param_df = get_parameter_df(draw)
+    for param in param_df["parameter"].unique():
+        if param in mi.inits_dict.keys():
+            p = getattr(mi.parameters, param)
+            cond = param_df["parameter"] == param
+            param_df.loc[cond, "initial_value"] = np.array(
+                p.inits.inits_unscaled
+            ).flatten()
+            param_df.loc[cond, "location"] = np.array(
+                p.prior.location
+            ).flatten()
+            param_df.loc[cond, "scale"] = np.array(p.prior.scale).flatten()
+            param_df.loc[cond, "prior_dist"] = (
+                "lognormal" if p.non_negative else "normal"
+            )
     experiment_ix, experiment = next(
         (i, exp)
-        for i, exp in enumerate(mi.measurements.experiments)
+        for i, exp in enumerate(mi.experiments)
         if exp.id == experiment_id
     )
     doc, model = initialise_model(mi)
     add_parameters_to_model(model, param_df)
     add_species_to_model(model, mi, experiment_ix)
     add_reactions_to_model(model, mi, param_df, experiment.temperature)
+    add_measurements_to_model(model, mi, experiment_ix)
 
     doc.setConsistencyChecks(sbml.LIBSBML_CAT_UNITS_CONSISTENCY, False)
 
     if doc.checkConsistency():
-
         for error_num in range(doc.getErrorLog().getNumErrors()):
             if not doc.getErrorLog().getError(error_num).isWarning():
                 warnings.warn(
                     doc.getErrorLog().getError(error_num).getMessage(),
                     RuntimeWarning,
                 )
-    return doc, model
+    return doc, model, param_df
 
 
 def initialise_model(mi: MaudInput) -> Tuple[sbml.SBMLDocument, sbml.Model]:
@@ -74,18 +88,49 @@ def initialise_model(mi: MaudInput) -> Tuple[sbml.SBMLDocument, sbml.Model]:
     model.setId(mi.config.name)
     model.setName(mi.config.name)
     for maud_cpt in mi.kinetic_model.compartments:
-        cpt = model.createCompartment()
+        cpt: sbml.Compartment = model.createCompartment()
         cpt.setId(maud_cpt.id)
         cpt.setConstant(True)
         cpt.setSize(maud_cpt.volume)
+        cpt.setVolume(maud_cpt.volume)
+        cpt.setSpatialDimensions(3)
+        cpt.setUnits("litre")
     return doc, model
+
+
+def add_measurements_to_model(
+    model: sbml.Model, mi: MaudInput, experiment_ix: int
+):
+    for m in mi.experiments[experiment_ix].measurements:
+        if m.target_type == "mic":
+            target_id = m.metabolite + m.compartment
+        elif m.target_type == "flux":
+            target_id = m.reaction
+        elif m.target_type == "enzyme":
+            target_id = m.enzyme_id
+        val_id = "m" + m.target_type.value + m.experiment + target_id
+        val = model.createParameter()
+        if val.setId(val_id) != sbml.LIBSBML_OPERATION_SUCCESS:
+            raise RuntimeError(
+                f"Unable to generate parameter with id {val_id}."
+            )
+        val.setId(val_id)
+        val.setConstant(True)
+        val.setValue(m.value)
+        sd = model.createParameter()
+        sd_id = "merror" + m.target_type.value + m.experiment + target_id
+        sd.setId(sd_id)
+        sd.setConstant(True)
+        sd.setValue(m.error_scale)
+        if sd.setId(sd_id) != sbml.LIBSBML_OPERATION_SUCCESS:
+            raise RuntimeError(f"Unable to generate parameter with id {sd_id}.")
 
 
 def add_parameters_to_model(model: sbml.Model, param_df: pd.DataFrame):
     """Add parameters to an sbml model from a dataframe."""
     zero = model.createParameter()
-    zero.setId("zero")
-    zero.setName("zero")
+    zero.setId("constzero")
+    zero.setName("constzero")
     zero.setConstant(True)
     zero.setValue(0)
     for _, row in param_df.iterrows():
@@ -94,23 +139,22 @@ def add_parameters_to_model(model: sbml.Model, param_df: pd.DataFrame):
         if param.setId(pid) != sbml.LIBSBML_OPERATION_SUCCESS:
             raise RuntimeError(f"Unable to generate parameter with id {pid}.")
         param.setName(pid)
-        param.setConstant(True)
+        if row["is_constant"]:
+            param.setConstant(True)
         param.setValue(pval)
 
 
 def add_species_to_model(model: sbml.Model, mi: MaudInput, experiment_ix: int):
     """Add species to a model with initial concs from an experiment."""
-    conc_init = mi.stan_input_train.conc_init.value
-    balanced_mic_ix, balanced_mics = zip(
-        *[(i, m) for i, m in enumerate(mi.kinetic_model.mics) if m.balanced]
-    )
-    for i, mic in zip(balanced_mic_ix, balanced_mics):
+    conc_init = mi.stan_input_train["conc_init"]
+    balanced_mics = [m for m in mi.kinetic_model.mics if m.balanced]
+    for i, mic in enumerate(balanced_mics):
         spid = "s" + mic.id.replace("_", "").replace("-", "")
         sp = model.createSpecies()
         sp.setCompartment(mic.compartment_id)
         sp.setId(spid)
         sp.setName(spid)
-        sp.setInitialAmount(conc_init[experiment_ix][i])
+        sp.setInitialConcentration(conc_init[experiment_ix][i])
 
 
 def add_reactions_to_model(
@@ -139,14 +183,16 @@ def add_reactions_to_model(
         # handle modifiers
         for mic in filter(lambda m: m.balanced, mi.kinetic_model.mics):
             spid = "s" + mic.id.replace("_", "").replace("-", "")
-            for ci in mi.kinetic_model.competitive_inhibitions:
-                if ci.mic_id == mic.id:
-                    mfr = sbml_rxn.createModifier()
-                    mfr.setSpecies(spid)
-            for al in mi.kinetic_model.allosteries:
-                if al.mic_id == mic.id:
-                    mfr = sbml_rxn.createModifier()
-                    mfr.setSpecies(spid)
+            if mi.kinetic_model.competitive_inhibitions is not None:
+                for ci in mi.kinetic_model.competitive_inhibitions:
+                    if ci.mic_id == mic.id:
+                        mfr = sbml_rxn.createModifier()
+                        mfr.setSpecies(spid)
+            if mi.kinetic_model.allosteries is not None:
+                for al in mi.kinetic_model.allosteries:
+                    if al.mic_id == mic.id:
+                        mfr = sbml_rxn.createModifier()
+                        mfr.setSpecies(spid)
         kl = sbml_rxn.createKineticLaw()
         flux_expr = get_edge_flux(param_df, mi, edge.id, temperature)
         math_ast = sbml.parseL3Formula(flux_expr)
@@ -159,6 +205,7 @@ def add_reactions_to_model(
 
 def get_parameter_df(draw: xr.Dataset) -> pd.DataFrame:
     """Get a dataframe of parameter ids and values."""
+    constant_vars = ["dgr_train"]
     return (
         pd.concat(
             {
@@ -170,7 +217,9 @@ def get_parameter_df(draw: xr.Dataset) -> pd.DataFrame:
         .reset_index()
         .rename(columns={"level_0": "parameter", "level_1": "id"})
         .assign(
-            pid=lambda df: "p"
+            is_constant=lambda df: df["parameter"].isin(constant_vars),
+            pid=lambda df:
+            pd.Series(np.where(df["is_constant"], "const", "p"), index=df.index)
             + df["parameter"]
             .str.replace("-", "")
             .str.replace("_", "")
@@ -201,7 +250,7 @@ def get_drain_flux(
     param_df: pd.DataFrame, km: KineticModel, drain: Reaction, corrector: float
 ) -> str:
     """Get an expression for the flux for a drain edge."""
-    drain_val = lookup_param(param_df, "drain", [drain.id])["pid"].iloc[0]
+    drain_val = lookup_param(param_df, "drain_train", [drain.id])["pid"].iloc[0]
     sub_ids = list(k for k, v in drain.stoichiometry.items() if v < 0)
     if len(sub_ids) == 0:
         return f"({drain_val})"
@@ -242,7 +291,9 @@ def get_enzyme_reaction_flux(
 
 def get_enzyme_concentration(param_df: pd.DataFrame, enzyme_id: str) -> str:
     """Get the concentration for an enzyme."""
-    return lookup_param(param_df, "conc_enzyme", [enzyme_id])["pid"].iloc[0]
+    return lookup_param(param_df, "conc_enzyme_train", [enzyme_id])["pid"].iloc[
+        0
+    ]
 
 
 def get_kcat(param_df: pd.DataFrame, enzyme_id: str) -> str:
@@ -259,14 +310,14 @@ def get_reversibility(
     """Get the reversibility for a reaction in an experiment."""
     RT = str(0.008314 * temperature)
     reaction = next(r for r in km.reactions if r.id == edge.reaction_id)
-    if reaction.mechanism == ReactionMechanism.IRREVERSIBLE_MICHAELIS_MENTEN:
+    if reaction.mechanism == ReactionMechanism.irreversible_michaelis_menten:
         return "1"
     mic_ids = list(reaction.stoichiometry.keys())
     stoics = list(reaction.stoichiometry.values())
-    dgr_expr = lookup_param(parameter_df, "dgrs", [edge.id])["pid"].iloc[0]
+    dgr_expr = lookup_param(parameter_df, "dgr_train", [edge.id])["pid"].iloc[0]
     conc_exprs = get_conc_expressions(parameter_df, km, mic_ids)
     reaction_quotient_cpts = [
-        f"({stoic}*ln({conc_expr}))"
+        f"({stoic}*log10({conc_expr}))/log10(2.7182818284)"  # this is because matlab cannot parse 'ln'
         for stoic, conc_expr in zip(stoics, conc_exprs)
     ]
     reaction_quotient_expression = f"({'+'.join(reaction_quotient_cpts)})"
@@ -292,7 +343,7 @@ def get_allostery(
         dc = lookup_param(param_df, "dissociation_constant", [allostery.id])[
             "pid"
         ].iloc[0]
-        if allostery.modification_type == ModificationType.ACTIVATION:
+        if allostery.modification_type == ModificationType.activation:
             Qdenom_cpts += [f"{conc}/{dc}"]
         else:
             Qnum_cpts += [f"{conc}/{dc}"]
@@ -315,7 +366,7 @@ def get_conc_expressions(
     return [
         "s" + mic_id.replace("-", "").replace("_", "")
         if mic_id in balanced_mic_ids
-        else "pconcunbalanced" + mic_id.replace("-", "").replace("_", "")
+        else "pconcunbalancedtrain" + mic_id.replace("-", "").replace("_", "")
         for mic_id in mic_ids
     ]
 
@@ -352,8 +403,8 @@ def get_free_enzyme_ratio(
             for conc_expr, ki_expr in zip(ci_conc_exprs, ki_exprs)
         )
     else:
-        denom_ci_cpt = "zero"
-    if reaction.mechanism == ReactionMechanism.REVERSIBLE_MICHAELIS_MENTEN:
+        denom_ci_cpt = "constzero"
+    if reaction.mechanism == ReactionMechanism.reversible_michaelis_menten:
         prod_ids = list(k for k, v in reaction.stoichiometry.items() if v > 0)
         prod_km_ids = [ID_SEPARATOR.join([enzyme.id, p]) for p in prod_ids]
         prod_km_exprs = lookup_param(param_df, "km", prod_km_ids)["pid"].values
@@ -368,7 +419,7 @@ def get_free_enzyme_ratio(
             + "-1"
         )
     else:
-        denom_prod_cpt = "zero"
+        denom_prod_cpt = "constzero"
     return f"1/(({denom_sub_cpt})+({denom_ci_cpt})+({denom_prod_cpt}))"
 
 

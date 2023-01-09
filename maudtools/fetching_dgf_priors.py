@@ -45,7 +45,7 @@ def fetch_dgf_priors_from_equilibrator(
             raise ValueError(
                 f"cannot find compound for metabolite {m.id}"
                 f" with external id {external_id}."
-                "\nConsider setting the field metabolite_inchi_key"
+                "\nConsider setting the field inchi_key"
                 " if you haven't already."
             )
     sigmas_fin = np.array(sigmas_fin)

@@ -110,13 +110,16 @@ def generate_sbml_command(
         experiment = next(
             experiment.id for experiment in mi.measurements.experiments
         )
-    file_name = f"ch{chain}-dr{draw}-wu{warmup}-ex{experiment}.xml"
-    file_out = os.path.join(maud_output_dir, file_name)
-    sbml_doc, sbml_model = generate_sbml(
+    sbml_file = f"ch{chain}-dr{draw}-wu{warmup}-ex{experiment}.xml"
+    param_file = f"ch{chain}-dr{draw}-wu{warmup}-ex{experiment}-params.csv"
+    sbml_path = os.path.join(maud_output_dir, sbml_file)
+    param_path = os.path.join(maud_output_dir, param_file)
+    sbml_doc, sbml_model, param_df = generate_sbml(
         idata, mi, experiment, chain, draw, warmup
     )
-    with open(file_out, "w") as f:
+    with open(sbml_path, "w") as f:
         f.write(sbml.writeSBMLToString(sbml_doc))
+    param_df.to_csv(param_path)
 
 
 @cli.command("generate-inits")
@@ -134,16 +137,16 @@ def generate_sbml_command(
     "--warmup", default=0, help="0 if in sampling, 1 if in warmup phase"
 )
 def generate_inits_command(data_path, chain, draw, warmup):
-    """Run the generate_inits function as a click command."""
+    """Get inits from data_path at specified chain, draw and warmup specified ."""
     output_name = "generated_inits.csv"
     output_path = os.path.join(data_path, output_name)
-    idata_file = os.path.join(data_path, "idata.nc")
+    idata_file = os.path.join(data_path, "idata.json")
     if not os.path.exists(idata_file):
-        idata_file = os.path.join(data_path, f"idata-chain{chain+1}.nc")
+        idata_file = os.path.join(data_path, f"idata-chain{chain+1}.json")
     assert os.path.exists(
         idata_file
     ), f"Directory {data_path} contains no idata file."
-    idata = az.InferenceData.from_netcdf(idata_file)
+    idata = az.from_json(idata_file)
     mi = load_maud_input(os.path.join(data_path, "user_input"))
     click.echo("Creating inits table")
     inits = generate_inits(idata, mi, chain, draw, warmup)
@@ -160,7 +163,7 @@ def generate_inits_command(data_path, chain, draw, warmup):
 @click.option("--chain", default=1, help="Chain to use")
 def rescue_idata(data_path, chain):
     """Generate an idata from a single chain after running Maud."""
-    output_file = os.path.join(data_path, f"idata-chain{chain}.nc")
+    output_file = os.path.join(data_path, f"idata-chain{chain}.json")
     input_dir = os.path.join(data_path, "user_input")
     csv_dir = os.path.join(data_path, "samples")
     end_pattern = f"{chain}.csv"
@@ -173,4 +176,4 @@ def rescue_idata(data_path, chain):
     ), f"No file in directory {csv_dir} ends with {end_pattern}"
     mi = load_maud_input(data_path=input_dir)
     idata = get_idata([csv_file], mi, "train")
-    idata.to_netcdf(output_file)
+    idata.to_json(output_file)
