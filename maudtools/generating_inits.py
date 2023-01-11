@@ -1,14 +1,8 @@
 """Functions for generating initial values from draws."""
-import json
-from dataclasses import asdict, fields
+from dataclasses import fields
 
 import arviz as az
-import numpy as np
-import pandas as pd
-import toml
-from maud.data_model.maud_init import InitAtomInput, InitInput
 from maud.data_model.maud_input import MaudInput
-from maud.data_model.maud_parameter import MaudParameter
 
 
 def generate_inits(
@@ -61,40 +55,3 @@ def generate_inits(
                 param_init_input_dict += param_init_input_dict_exp
         init_input[param.name.replace("_train", "")] = param_init_input_dict
     return init_input
-
-
-    #     for id_component in id_components
-    #     id_components_repeated = itertools.repeat
-    #     id_c = id_components_flat
-    #     if len(param.shape_names) == 1:
-    #         import pdb; pdb.set_trace()
-    #         vals = getattr(idata_draw, param.name).values
-
-    #         # param_df = pd.DataFrame(getattr(idata_draw, param))
-    #     if len(param.shape_names) == 1:
-    #         ix_names = [idc.value for idc in param.id_components[0]]
-    #         col_ix_names = [idc.value for idc in sv.id_components[1]]
-    #         param_df.index = pd.Index(training_experiments, name="experiment")
-    #         param_df.columns = (
-    #             pd.MultiIndex.from_arrays(sv.split_ids[1], names=col_ix_names)
-    #             if sv.split_ids is not None
-    #             else pd.Index(sv.ids[1], name=col_ix_names[0])
-    #         )
-    #         param_df = (
-    #             param_df.stack(level=param_df.columns.names)
-    #             .rename("value")
-    #             .reset_index()
-    #         )
-    #     else:
-
-    #         ixs = sv.split_ids if sv.split_ids is not None else [sv.ids[0]]
-    #         ix_df = pd.DataFrame(dict(zip(ix_names, ixs)))
-    #         if "experiment" in ix_names:
-    #             ix_df = ix_df.loc[
-    #                 lambda df: df["experiment"].isin(training_experiments)
-    #             ]
-    #         param_df.index = pd.MultiIndex.from_frame(ix_df)
-    #         param_df = param_df[0].rename("value").reset_index()
-    #     param_df["parameter"] = param
-    #     out = pd.concat([out, param_df], ignore_index=True)
-    # return out
