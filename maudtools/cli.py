@@ -1,6 +1,7 @@
 """Console script for maudtools."""
 import os
 from typing import Optional
+import toml
 
 import arviz as az
 import click
@@ -138,7 +139,7 @@ def generate_sbml_command(
 )
 def generate_inits_command(data_path, chain, draw, warmup):
     """Get inits from data_path at specified chain, draw and warmup specified ."""
-    output_name = "generated_inits.csv"
+    output_name = "generated_inits.toml"
     output_path = os.path.join(data_path, output_name)
     idata_file = os.path.join(data_path, "idata.json")
     if not os.path.exists(idata_file):
@@ -149,10 +150,11 @@ def generate_inits_command(data_path, chain, draw, warmup):
     idata = az.from_json(idata_file)
     mi = load_maud_input(os.path.join(data_path, "user_input"))
     click.echo("Creating inits table")
-    inits = generate_inits(idata, mi, chain, draw, warmup)
+    inits_dict = generate_inits(idata, mi, chain, draw, warmup)
     click.echo(f"Saving inits table to: {output_path}")
-    inits.to_csv(output_path)
-    click.echo("Successfully generated inits csv")
+    with open(output_path, "w") as f:
+        toml.dump(inits_dict, f, encoder=toml.TomlNumpyEncoder())
+    click.echo("Successfully generated inits file")
 
 
 @cli.command("rescue-idata")

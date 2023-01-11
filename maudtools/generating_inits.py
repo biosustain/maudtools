@@ -1,9 +1,11 @@
 """Functions for generating initial values from draws."""
-from dataclasses import fields
+import json
+from dataclasses import asdict, fields
 
 import arviz as az
 import numpy as np
 import pandas as pd
+import toml
 from maud.data_model.maud_init import InitAtomInput, InitInput
 from maud.data_model.maud_input import MaudInput
 from maud.data_model.maud_parameter import MaudParameter
@@ -31,35 +33,34 @@ def generate_inits(
     """
     posterior = idata.warmup_posterior if warmup == 1 else idata.posterior
     idata_draw = posterior.sel(chain=chain, draw=draw)
-    param_names = [f for f in fields(mi.parameters) if f.name in idata_draw.data_vars]
+    param_names = [
+        f for f in fields(mi.parameters) if f.name in idata_draw.data_vars
+    ]
     params = [getattr(mi.parameters, f.name) for f in param_names]
     init_input = {}
     for param in params:
         vals = getattr(idata_draw, param.name)
         if len(param.ids) == 1:
             idc_strings = [idc.value for idc in param.id_components[0]]
-            kwarg_list = [
+            param_init_input_dict = [
                 {"init": val} | dict(zip(idc_strings, ids))
                 for val, ids in zip(vals.values, zip(*param.split_ids[0]))
             ]
-            init = Init1
         else:
-            idc_stings = [idc.value for idc in param.id_components[1]]
-            kwarg_list = []
+            idc_strings = [idc.value for idc in param.id_components[1]]
+            param_init_input_dict = []
             for exp_id in param.ids[0]:
                 exp_vals = vals.sel(experiments=exp_id)
-                kwarg_list_exp = [
-                    {"init": val, "experiment": exp_id} | dict(zip(idc_strings, ids))
-                    for val, ids in zip(vals.values.flatten(), zip(*param.split_ids[1]))
+                param_init_input_dict_exp = [
+                    {"init": val, "experiment": exp_id}
+                    | dict(zip(idc_strings, ids))
+                    for val, ids in zip(
+                        exp_vals.values.flatten(), zip(*param.split_ids[1])
+                    )
                 ]
-                kwarg_list.append(kwarg_list_exp)
-                import pdb; pdb.set_trace()
-        init_input[param.name] = [InitAtomInput(**kwargs) for kwargs in kwarg_list]
-    
-
-
-                
-                
+                param_init_input_dict += param_init_input_dict_exp
+        init_input[param.name] = param_init_input_dict
+    return init_input
 
 
     #     for id_component in id_components
