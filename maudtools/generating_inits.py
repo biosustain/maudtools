@@ -59,7 +59,7 @@ def generate_inits(
                     )
                 ]
                 param_init_input_dict += param_init_input_dict_exp
-        init_input[param.name] = param_init_input_dict
+        init_input[param.name.replace("_train", "")] = param_init_input_dict
     return init_input
 
 
