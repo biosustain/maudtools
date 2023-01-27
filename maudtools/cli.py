@@ -115,12 +115,11 @@ def generate_sbml_command(
     param_file = f"ch{chain}-dr{draw}-wu{warmup}-ex{experiment}-params.csv"
     sbml_path = os.path.join(maud_output_dir, sbml_file)
     param_path = os.path.join(maud_output_dir, param_file)
-    sbml_doc, sbml_model, param_df = generate_sbml(
+    sbml_doc, sbml_model = generate_sbml(
         idata, mi, experiment, chain, draw, warmup
     )
     with open(sbml_path, "w") as f:
         f.write(sbml.writeSBMLToString(sbml_doc))
-    param_df.to_csv(param_path)
 
 
 @cli.command("generate-inits")
@@ -138,7 +137,10 @@ def generate_sbml_command(
     "--warmup", default=0, help="0 if in sampling, 1 if in warmup phase"
 )
 def generate_inits_command(data_path, chain, draw, warmup):
-    """Get inits from data_path at specified chain, draw and warmup specified ."""
+    """Get inits from data_path for a specified chain and draw.
+
+    If warmup is 1, start counting draws from the first warmup draw.
+    """
     output_name = "generated_inits.toml"
     output_path = os.path.join(data_path, output_name)
     idata_file = os.path.join(data_path, "idata.json")
