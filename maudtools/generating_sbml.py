@@ -38,15 +38,15 @@ from maud.data_model.kinetic_model import (
 from maud.data_model.maud_input import MaudInput  # type: ignore
 
 PREFIXES = {
-    "reaction": "_rxn_",
-    "species": "_spc_",
-    "constant": "_cst_",
-    "param_value": "_prv_",
-    "param_location": "_prl_",
-    "param_scale": "_prs_",
-    "param_dist": "_prd_",
-    "measurement_value": "_mtv_",
-    "measurement_error_scale": "_mts_",
+    "reaction": "rxn_",
+    "species": "spc_",
+    "constant": "cst_",
+    "param_value": "prv_",
+    "param_location": "prl_",
+    "param_scale": "prs_",
+    "param_dist": "prd_",
+    "measurement_value": "mtv_",
+    "measurement_error_scale": "mts_",
 }
 SBML_VARS = [
     "drain_train",
