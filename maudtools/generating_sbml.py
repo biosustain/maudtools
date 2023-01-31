@@ -37,6 +37,17 @@ from maud.data_model.kinetic_model import (
 )
 from maud.data_model.maud_input import MaudInput  # type: ignore
 
+PREFIXES = {
+    "reaction": "_rxn_",
+    "species": "_spc_",
+    "constant": "_cst_",
+    "param_value": "_prv_",
+    "param_location": "_prl_",
+    "param_scale": "_prs_",
+    "param_dist": "_prd_",
+    "measurement_value": "_mtv_",
+    "measurement_error_scale": "_mts_",
+}
 SBML_VARS = [
     "drain_train",
     "kcat",
@@ -73,8 +84,8 @@ def generate_sbml(
     assert isinstance(draw, xr.Dataset)
 
     zero = model.createParameter()
-    zero.setId("_cst_zero")
-    zero.setName("_cst_zero")
+    zero.setId(PREFIXES["constant"] + "zero")
+    zero.setName(PREFIXES["constant"] + "zero")
     zero.setValue(0.0)
     zero.setConstant(True)
     for mp in (getattr(mi.parameters, f.name) for f in fields(mi.parameters)):
@@ -123,7 +134,12 @@ def add_measurements_to_model(
             target_id = m.reaction
         elif m.target_type == "enzyme":
             target_id = m.enzyme_id
-        val_id = "_mtv_" + m.target_type.value + m.experiment + target_id
+        val_id = (
+            PREFIXES["measurement_value"]
+            + m.target_type.value
+            + m.experiment
+            + target_id
+        )
         val = model.createParameter()
         if val.setId(val_id) != sbml.LIBSBML_OPERATION_SUCCESS:
             raise RuntimeError(
@@ -133,7 +149,12 @@ def add_measurements_to_model(
         val.setConstant(True)
         val.setValue(m.value)
         sd = model.createParameter()
-        sd_id = "_mts_" + m.target_type.value + m.experiment + target_id
+        sd_id = (
+            PREFIXES["measurement_error_scale"]
+            + m.target_type.value
+            + m.experiment
+            + target_id
+        )
         sd.setId(sd_id)
         sd.setConstant(True)
         sd.setValue(m.error_scale)
@@ -148,7 +169,11 @@ def add_parameter_atom_to_model(
     pv_param = model.createParameter()
     param_atom_id = squash(param_name + coord)
     is_const = param_name not in SBML_VARS
-    pvid = "_cst_" + param_atom_id if is_const else "_prv_" + param_atom_id
+    pvid = (
+        PREFIXES["constant"] + param_atom_id
+        if is_const
+        else PREFIXES["param_value"] + param_atom_id
+    )
     if pv_param.setId(pvid) != sbml.LIBSBML_OPERATION_SUCCESS:
         raise RuntimeError(f"Unable to generate parameter with id {pvid}.")
     pv_param.setId(pvid)
@@ -158,9 +183,9 @@ def add_parameter_atom_to_model(
         pv_param.setConstant(True)
     else:
         pv_param.setConstant(False)
-        for pref, val in zip(["_prl_", "_prs_", "_prd_"], [loc, scale, dist]):
+        for s, val in zip(["location", "scale", "dist"], [loc, scale, dist]):
             sbml_param = model.createParameter()
-            sbml_param_id = pref + param_atom_id
+            sbml_param_id = PREFIXES[f"param_{s}"] + param_atom_id
             sbml_param.setId(sbml_param_id)
             sbml_param.setName(sbml_param_id)
             sbml_param.setValue(val)
@@ -202,7 +227,7 @@ def add_species_to_model(model: sbml.Model, mi: MaudInput, experiment_ix: int):
     conc_init = mi.stan_input_train["conc_init"]
     balanced_mics = [m for m in mi.kinetic_model.mics if m.balanced]
     for i, mic in enumerate(balanced_mics):
-        spid = "_spc_" + squash(mic.id)
+        spid = PREFIXES["species"] + squash(mic.id)
         sp = model.createSpecies()
         sp.setCompartment(mic.compartment_id)
         sp.setId(spid)
@@ -221,12 +246,12 @@ def add_reactions_to_model(
         maud_rxn = next(
             r for r in mi.kinetic_model.reactions if r.id == maud_rxn_id
         )
-        sbml_rxn_id = "_rxn_" + squash(edge.id)
+        sbml_rxn_id = PREFIXES["reaction"] + squash(edge.id)
         sbml_rxn = model.createReaction()
         sbml_rxn.setId(sbml_rxn_id)
         for mic_id, stoic in maud_rxn.stoichiometry.items():
             mic = next(m for m in mi.kinetic_model.mics if m.id == mic_id)
-            spid = "_spc_" + squash(mic.id)
+            spid = PREFIXES["species"] + squash(mic.id)
             if mic.balanced and stoic < 0:
                 spr = sbml_rxn.createReactant()
                 spr.setSpecies(spid)
@@ -236,7 +261,7 @@ def add_reactions_to_model(
         # handle modifiers
         if isinstance(edge, EnzymeReaction):
             for mic in filter(lambda m: m.balanced, mi.kinetic_model.mics):
-                spid = "_spc_" + squash(mic.id)
+                spid = PREFIXES["species"] + squash(mic.id)
                 if mi.kinetic_model.competitive_inhibitions is not None:
                     for ci in mi.kinetic_model.competitive_inhibitions:
                         if (
@@ -280,7 +305,7 @@ def get_edge_flux(mi: MaudInput, edge_id: str, temperature: float) -> str:
 
 def get_drain_flux(km: KineticModel, drain: Reaction, corrector: float) -> str:
     """Get an expression for the flux for a drain edge."""
-    pid = "_prv_" + "draintrain" + squash(drain.id)
+    pid = PREFIXES["param_value"] + "draintrain" + squash(drain.id)
     sub_ids = list(k for k, v in drain.stoichiometry.items() if v < 0)
     if len(sub_ids) == 0:
         return f"({pid})"
@@ -311,12 +336,12 @@ def get_enzyme_reaction_flux(
 
 def get_enzyme_concentration(enzyme_id: str) -> str:
     """Get the concentration for an enzyme."""
-    return "_prv_" + "concenzymetrain" + squash(enzyme_id)
+    return PREFIXES["param_value"] + "concenzymetrain" + squash(enzyme_id)
 
 
 def get_kcat(enzyme_id: str) -> str:
     """Get an expression for kcat."""
-    return "_prv_" + "kcat" + squash(enzyme_id)
+    return PREFIXES["param_value"] + "kcat" + squash(enzyme_id)
 
 
 def get_reversibility(
@@ -331,7 +356,7 @@ def get_reversibility(
         return "1"
     mic_ids = list(reaction.stoichiometry.keys())
     stoics = list(reaction.stoichiometry.values())
-    dgr_expr = "_cst_" + "dgrtrain" + squash(edge.id)
+    dgr_expr = PREFIXES["constant"] + "dgrtrain" + squash(edge.id)
     conc_exprs = get_conc_expressions(km, mic_ids)
     reaction_quotient_cpts = [
         # this is because matlab cannot parse 'ln'
@@ -349,12 +374,16 @@ def get_allostery(km: KineticModel, er: EnzymeReaction) -> str:
         return "(1)"
     enzyme = next(e for e in km.enzymes if e.id == er.enzyme_id)
     fer = get_free_enzyme_ratio(er.id, km)
-    tc = "_prv_" + "transferconstant" + squash(er.enzyme_id)
+    tc = PREFIXES["param_value"] + "transferconstant" + squash(er.enzyme_id)
     Qnum_cpts = ["1"]
     Qdenom_cpts = ["1"]
     for allostery in allosteries:
         conc = get_conc_expressions(km, [allostery.mic_id])[0]
-        dc = "_prv_" + "dissociationconstant" + squash(allostery.id)
+        dc = (
+            PREFIXES["param_value"]
+            + "dissociationconstant"
+            + squash(allostery.id)
+        )
         if allostery.modification_type == ModificationType.activation:
             Qdenom_cpts += [f"{conc}/{dc}"]
         else:
@@ -374,9 +403,9 @@ def get_conc_expressions(km: KineticModel, mic_ids: List[str]) -> List[str]:
     """
     balanced_mic_ids = [m.id for m in km.mics if m.balanced]
     return [
-        "_spc_" + squash(mic_id)
+        PREFIXES["species"] + squash(mic_id)
         if mic_id in balanced_mic_ids
-        else "_prv_concunbalancedtrain" + squash(mic_id)
+        else PREFIXES["param_value"] + "concunbalancedtrain" + squash(mic_id)
         for mic_id in mic_ids
     ]
 
@@ -390,7 +419,9 @@ def get_free_enzyme_ratio(er_id: str, km: KineticModel) -> str:
     sub_ids = list(k for k, v in reaction.stoichiometry.items() if v < 0)
     sub_km_ids = [ID_SEPARATOR.join([enzyme.id, s]) for s in sub_ids]
     sub_conc_exprs = get_conc_expressions(km, sub_ids)
-    sub_km_exprs = ["_prv_" + "km" + squash(km_id) for km_id in sub_km_ids]
+    sub_km_exprs = [
+        PREFIXES["param_value"] + "km" + squash(km_id) for km_id in sub_km_ids
+    ]
     denom_sub_cpt = "*".join(
         f"(1+{conc_expr}/{km_expr})^{np.abs(S.loc[sub_id, er_id])}"
         for conc_expr, km_expr, sub_id in zip(
@@ -403,18 +434,21 @@ def get_free_enzyme_ratio(er_id: str, km: KineticModel) -> str:
         cis = [ci for ci in km.competitive_inhibitions if ci.er_id == er_id]
         ci_mic_ids = [ci.mic_id for ci in cis]
         ci_conc_exprs = get_conc_expressions(km, ci_mic_ids)
-        ki_exprs = ["_prv_" + "ki" + squash(ci.id) for ci in cis]
+        ki_exprs = [
+            PREFIXES["param_value"] + "ki" + squash(ci.id) for ci in cis
+        ]
         denom_ci_cpt = "+".join(
             f"({conc_expr}/{ki_expr})"
             for conc_expr, ki_expr in zip(ci_conc_exprs, ki_exprs)
         )
     else:
-        denom_ci_cpt = "_cst_zero"
+        denom_ci_cpt = PREFIXES["constant"] + "zero"
     if reaction.mechanism == ReactionMechanism.reversible_michaelis_menten:
         prod_ids = list(k for k, v in reaction.stoichiometry.items() if v > 0)
         prod_km_ids = [ID_SEPARATOR.join([enzyme.id, p]) for p in prod_ids]
         prod_km_exprs = [
-            "_prv_" + "km" + squash(km_id) for km_id in prod_km_ids
+            PREFIXES["param_value"] + "km" + squash(km_id)
+            for km_id in prod_km_ids
         ]
         prod_conc_exprs = get_conc_expressions(km, prod_ids)
         denom_prod_cpt = (
@@ -442,7 +476,8 @@ def get_saturation(er_id: str, km: KineticModel) -> str:
     sub_km_ids = [ID_SEPARATOR.join([enzyme.id, s]) for s in sub_ids]
     sub_conc_exprs = get_conc_expressions(km, sub_ids)
     sub_km_exprs = [
-        "_prv_" + "km" + squash(sub_km_id) for sub_km_id in sub_km_ids
+        PREFIXES["param_value"] + "km" + squash(sub_km_id)
+        for sub_km_id in sub_km_ids
     ]
     sub_concs_over_kms = [
         f"({conc_expr}/{km_expr})"
@@ -464,10 +499,14 @@ def get_phosphorylation(km: KineticModel, er: EnzymeReaction) -> str:
     alpha_cpts = []
     for phosphorylation in phosphorylations:
         kcat_pme = (
-            "_prv_" + "kcatpme" + squash(phosphorylation.modifying_enzyme_id)
+            PREFIXES["param_value"]
+            + "kcatpme"
+            + squash(phosphorylation.modifying_enzyme_id)
         )
         conc_pme = (
-            "_prv_" + "concpme" + squash(phosphorylation.modifying_enzyme_id)
+            PREFIXES["param_value"]
+            + "concpme"
+            + squash(phosphorylation.modifying_enzyme_id)
         )
         kcat_times_conc = f"{kcat_pme}*{conc_pme}"
         if phosphorylation.modification_type == ModificationType.Inhibition:
