@@ -17,6 +17,7 @@ _mts_: measurement error scale
 
 """
 import warnings
+from dataclasses import fields
 from typing import List, Tuple
 
 import arviz as az
@@ -24,18 +25,13 @@ import libsbml as sbml  # type: ignore
 import numpy as np
 import pandas as pd
 import xarray as xr
-from dataclasses import fields
 from maud.data_model.hardcoding import ID_SEPARATOR  # type: ignore
-from maud.data_model.prior import IndPrior1d, IndPrior2d
-from maud.data_model.maud_parameter import MaudParameter
 from maud.data_model.kinetic_model import EnzymeReaction  # type:ignore
-from maud.data_model.kinetic_model import (
-    KineticModel,
-    ModificationType,
-    Reaction,
-    ReactionMechanism,
-)
+from maud.data_model.kinetic_model import (KineticModel, ModificationType,
+                                           Reaction, ReactionMechanism)
 from maud.data_model.maud_input import MaudInput  # type: ignore
+from maud.data_model.maud_parameter import MaudParameter
+from maud.data_model.prior import IndPrior1d, IndPrior2d
 
 PREFIXES = {
     "reaction": "rxn_",
@@ -134,11 +130,8 @@ def add_measurements_to_model(
             target_id = m.reaction
         elif m.target_type == "enzyme":
             target_id = m.enzyme_id
-        val_id = (
-            PREFIXES["measurement_value"]
-            + m.target_type.value
-            + m.experiment
-            + target_id
+        val_id = PREFIXES["measurement_value"] + squash(
+            m.target_type.value + m.experiment + target_id
         )
         val = model.createParameter()
         if val.setId(val_id) != sbml.LIBSBML_OPERATION_SUCCESS:
@@ -149,11 +142,8 @@ def add_measurements_to_model(
         val.setConstant(True)
         val.setValue(m.value)
         sd = model.createParameter()
-        sd_id = (
-            PREFIXES["measurement_error_scale"]
-            + m.target_type.value
-            + m.experiment
-            + target_id
+        sd_id = PREFIXES["measurement_error_scale"] + squash(
+            m.target_type.value + m.experiment + target_id
         )
         sd.setId(sd_id)
         sd.setConstant(True)
