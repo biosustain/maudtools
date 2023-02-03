@@ -21,10 +21,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import plotnine as p9
-from plotnine import aes, geom_point, ggplot, labs
-
 from maud import io
-
+from plotnine import aes, geom_point, ggplot, labs
 
 HELP_MSG = """
 This script plots boxplots of enzyme concentrations,

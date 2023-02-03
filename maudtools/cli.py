@@ -1,11 +1,11 @@
 """Console script for maudtools."""
 import os
 from typing import Optional
-import toml
 
 import arviz as az
 import click
 import libsbml as sbml  # type: ignore
+import toml
 from maud.getting_idatas import get_idata  # type: ignore
 from maud.loading_maud_inputs import load_maud_input  # type: ignore
 

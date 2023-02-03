@@ -19,10 +19,8 @@
 from typing import Dict, List, Optional
 
 import pandas as pd
-
 from maud.analysis import join_list_of_strings
 from maud.io import get_stan_coords
-
 
 PRIOR_FILE_COLUMNS = [
     "parameter_name",
