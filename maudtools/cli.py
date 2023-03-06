@@ -62,7 +62,6 @@ def fetch_dgf_priors(
         toml.dump(dgf_priors, f)
 
 
-
 @cli.command("generate-sbml")
 @click.argument(
     "maud_output_dir",

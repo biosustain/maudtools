@@ -27,12 +27,8 @@ import pandas as pd
 import xarray as xr
 from maud.data_model.hardcoding import ID_SEPARATOR  # type: ignore
 from maud.data_model.kinetic_model import EnzymeReaction  # type:ignore
-from maud.data_model.kinetic_model import (
-    KineticModel,
-    ModificationType,
-    Reaction,
-    ReactionMechanism,
-)
+from maud.data_model.kinetic_model import (KineticModel, ModificationType,
+                                           Reaction, ReactionMechanism)
 from maud.data_model.maud_input import MaudInput  # type: ignore
 from maud.data_model.maud_parameter import MaudParameter
 from maud.data_model.prior import IndPrior1d, IndPrior2d

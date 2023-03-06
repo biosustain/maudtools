@@ -9,17 +9,17 @@ from equilibrator_cache.models.compound import Compound
 from maud.data_model.maud_input import MaudInput
 
 
-def put_dgf_priors_in_dictionary(mu: pd.Series, cov: pd.DataFrame) -> Dict[str, list]:
+def put_dgf_priors_in_dictionary(
+    mu: pd.Series, cov: pd.DataFrame
+) -> Dict[str, list]:
     """Put dgf priors in a dictionary for easier toml conversion."""
     return {
-        "dgf":
-        {
+        "dgf": {
             "ids": mu.index.tolist(),
             "mean_vector": mu.values.tolist(),
-            "covariance_matrix": cov.values.tolist()
+            "covariance_matrix": cov.values.tolist(),
         }
     }
-    
 
 
 def fetch_dgf_priors_from_equilibrator(
@@ -69,7 +69,11 @@ def fetch_dgf_priors_from_equilibrator(
         .loc[met_ix, met_ix]
         .round(10)
     )
-    mu = pd.Series(mu, index=met_order, name="prior_mean_dgf").loc[met_ix].round(10)
+    mu = (
+        pd.Series(mu, index=met_order, name="prior_mean_dgf")
+        .loc[met_ix]
+        .round(10)
+    )
     mu.index = mu.index.set_names("metabolite")
     cov.index = cov.index.set_names("metabolite")
     return put_dgf_priors_in_dictionary(mu, cov)
