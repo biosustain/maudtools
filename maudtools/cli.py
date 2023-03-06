@@ -106,9 +106,7 @@ def generate_sbml_command(
     mi = load_maud_input(maud_input_dir)
     idata = get_idata(csvs, mi, "train")
     if experiment is None:
-        experiment = next(
-            experiment.id for experiment in mi.measurements.experiments
-        )
+        experiment = next(experiment.id for experiment in mi.experiments)
     sbml_file = f"ch{chain}-dr{draw}-wu{warmup}-ex{experiment}.xml"
     param_file = f"ch{chain}-dr{draw}-wu{warmup}-ex{experiment}-params.csv"
     sbml_path = os.path.join(maud_output_dir, sbml_file)

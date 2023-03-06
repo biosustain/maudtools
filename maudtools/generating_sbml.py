@@ -27,8 +27,12 @@ import pandas as pd
 import xarray as xr
 from maud.data_model.hardcoding import ID_SEPARATOR  # type: ignore
 from maud.data_model.kinetic_model import EnzymeReaction  # type:ignore
-from maud.data_model.kinetic_model import (KineticModel, ModificationType,
-                                           Reaction, ReactionMechanism)
+from maud.data_model.kinetic_model import (
+    KineticModel,
+    ModificationType,
+    Reaction,
+    ReactionMechanism,
+)
 from maud.data_model.maud_input import MaudInput  # type: ignore
 from maud.data_model.maud_parameter import MaudParameter
 from maud.data_model.prior import IndPrior1d, IndPrior2d
@@ -129,7 +133,7 @@ def add_measurements_to_model(
         elif m.target_type == "flux":
             target_id = m.reaction
         elif m.target_type == "enzyme":
-            target_id = m.enzyme_id
+            target_id = m.enzyme
         val_id = PREFIXES["measurement_value"] + squash(
             m.target_type.value + m.experiment + target_id
         )
@@ -451,7 +455,7 @@ def get_free_enzyme_ratio(er_id: str, km: KineticModel) -> str:
             + "-1"
         )
     else:
-        denom_prod_cpt = "constzero"
+        denom_prod_cpt = PREFIXES["constant"] + "zero"
     return f"1/(({denom_sub_cpt})+({denom_ci_cpt})+({denom_prod_cpt}))"
 
 
