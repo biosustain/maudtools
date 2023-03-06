@@ -12,9 +12,12 @@ from maud.data_model.maud_input import MaudInput
 def put_dgf_priors_in_dictionary(mu: pd.Series, cov: pd.DataFrame) -> Dict[str, list]:
     """Put dgf priors in a dictionary for easier toml conversion."""
     return {
-        "ids": mu.index.tolist(),
-        "mean_vector": mu.values.tolist(),
-        "covariance_matrix": cov.values.tolist()
+        "dgf":
+        {
+            "ids": mu.index.tolist(),
+            "mean_vector": mu.values.tolist(),
+            "covariance_matrix": cov.values.tolist()
+        }
     }
     
 

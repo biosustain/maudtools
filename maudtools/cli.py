@@ -51,18 +51,16 @@ def fetch_dgf_priors(
     recognise - otherwise this script will raise an error.
 
     """
-    file_mean = os.path.join(maud_input_dir, "dgf_prior_mean_equilibrator.csv")
-    file_cov = os.path.join(maud_input_dir, "dgf_prior_cov_equilibrator.csv")
+    file_out = os.path.join(maud_input_dir, "dgf_priors_equilibrator.toml")
     mi = load_maud_input(maud_input_dir)
-    mu, cov = fetch_dgf_priors_from_equilibrator(mi, temperature, ph)
+    dgf_priors = fetch_dgf_priors_from_equilibrator(mi, temperature, ph)
     if print_results:
-        click.echo("Prior mean vector:")
-        click.echo(mu)
-        click.echo("Prior covariance:")
-        click.echo(cov)
-    mu.to_csv(file_mean)
-    cov.to_csv(file_cov)
-    click.echo(f"Wrote files {file_mean} and {file_cov}.")
+        click.echo("Dgf priors:")
+        click.echo(toml.dumps(dgf_priors))
+    print(f"Writing formation energy priors to {file_out}...")
+    with open(file_out, "w") as f:
+        toml.dump(dgf_priors, f)
+
 
 
 @cli.command("generate-sbml")
