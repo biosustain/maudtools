@@ -1,7 +1,7 @@
 import os
 
-from maud.user_templates import get_inits_from_draw
 from maud.getting_idatas import get_idata
+from maud.user_templates import get_inits_from_draw
 
 INIT_FILE_COLUMNS = [
     "parameter_name",

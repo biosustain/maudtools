@@ -24,12 +24,10 @@ import numpy as np
 import pandas as pd
 import plotnine as p9
 import seaborn as sns
-
 from maud import io
 from maud.analysis import load_infd
 from maud.data_model import IndPrior1d, IndPrior2d
 from maud.user_templates import get_parameter_coords
-
 
 HELP_MSG = """
 This script plots violin plots of all parameters.

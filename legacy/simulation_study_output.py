@@ -1,8 +1,7 @@
 """Provides dataclass SimulationStudyOutput"""
 from cmdstanpy import CmdStanMCMC
-from pydantic.dataclasses import dataclass
-
 from maud.data_model.maud_input import MaudInput
+from pydantic.dataclasses import dataclass
 
 
 @dataclass

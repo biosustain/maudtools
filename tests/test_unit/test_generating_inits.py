@@ -1,34 +1,36 @@
 """Test the generating_inits module."""
-import os
 
 import arviz as az
-import pandas as pd
+import numpy as np
+import toml
+from importlib_resources import files
+from maud.data.example_inputs import methionine
 from maud.loading_maud_inputs import load_maud_input
 
+from maudtools import data
 from maudtools.generating_inits import generate_inits
-
-DATA_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "data", "methionine_output"
-)
-
-ID_COLS = [
-    "enzyme",
-    "metabolite",
-    "compartment",
-    "parameter",
-    "experiment",
-    "reaction",
-]
 
 
 def test_generate_inits():
     """Check that the generate_inits function works as expected."""
-    mi = load_maud_input(data_path=os.path.join(DATA_PATH, "user_input"))
-    idata = az.from_netcdf(os.path.join(DATA_PATH, "idata.nc"))
-    inits = generate_inits(idata, mi, 0, 0, 0).set_index(ID_COLS).sort_index()
-    expected_inits = (
-        pd.read_csv(os.path.join(DATA_PATH, "generated_inits.csv"), index_col=0)
-        .set_index(ID_COLS)
-        .sort_index()
-    )
-    pd.testing.assert_frame_equal(inits, expected_inits)
+    expected = toml.load(files(methionine).joinpath("inits.toml"))
+    mi = load_maud_input(data_path=files(methionine)._paths[0])
+    idata = az.from_json(files(data).joinpath("idata_methionine.json"))
+    actual = generate_inits(idata, mi, 0, 0, 0)
+    for param, init_atoms_actual in actual.items():
+        for init_atom_actual in init_atoms_actual:
+            try:
+                init_atom_expected = next(
+                    d
+                    for d in expected[param]
+                    if all(
+                        d[k] == init_atom_actual[k]
+                        for k in init_atom_actual.keys()
+                        if k != "init"
+                    )
+                )
+            except:
+                raise ValueError(f"No {param} init matching {init_atom_actual}.")
+            assert np.isclose(
+                init_atom_actual["init"], init_atom_expected["init"]
+            ), f"{param} init {init_atom_actual} should be {init_atom_expected}."

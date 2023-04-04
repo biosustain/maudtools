@@ -6,7 +6,6 @@ from typing import Dict, List, Union
 import arviz as az
 import numpy as np
 from matplotlib import pyplot as plt
-
 from maud.data_model.maud_input import MaudInput
 
 

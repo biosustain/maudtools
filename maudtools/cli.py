@@ -5,6 +5,7 @@ from typing import Optional
 import arviz as az
 import click
 import libsbml as sbml  # type: ignore
+import toml
 from maud.getting_idatas import get_idata  # type: ignore
 from maud.loading_maud_inputs import load_maud_input  # type: ignore
 
@@ -50,18 +51,15 @@ def fetch_dgf_priors(
     recognise - otherwise this script will raise an error.
 
     """
-    file_mean = os.path.join(maud_input_dir, "dgf_prior_mean_equilibrator.csv")
-    file_cov = os.path.join(maud_input_dir, "dgf_prior_cov_equilibrator.csv")
+    file_out = os.path.join(maud_input_dir, "dgf_priors_equilibrator.toml")
     mi = load_maud_input(maud_input_dir)
-    mu, cov = fetch_dgf_priors_from_equilibrator(mi, temperature, ph)
+    dgf_priors = fetch_dgf_priors_from_equilibrator(mi, temperature, ph)
     if print_results:
-        click.echo("Prior mean vector:")
-        click.echo(mu)
-        click.echo("Prior covariance:")
-        click.echo(cov)
-    mu.to_csv(file_mean)
-    cov.to_csv(file_cov)
-    click.echo(f"Wrote files {file_mean} and {file_cov}.")
+        click.echo("Dgf priors:")
+        click.echo(toml.dumps(dgf_priors))
+    print(f"Writing formation energy priors to {file_out}...")
+    with open(file_out, "w") as f:
+        toml.dump(dgf_priors, f)
 
 
 @cli.command("generate-sbml")
@@ -107,15 +105,15 @@ def generate_sbml_command(
     mi = load_maud_input(maud_input_dir)
     idata = get_idata(csvs, mi, "train")
     if experiment is None:
-        experiment = next(
-            experiment.id for experiment in mi.measurements.experiments
-        )
-    file_name = f"ch{chain}-dr{draw}-wu{warmup}-ex{experiment}.xml"
-    file_out = os.path.join(maud_output_dir, file_name)
+        experiment = next(experiment.id for experiment in mi.experiments)
+    sbml_file = f"ch{chain}-dr{draw}-wu{warmup}-ex{experiment}.xml"
+    param_file = f"ch{chain}-dr{draw}-wu{warmup}-ex{experiment}-params.csv"
+    sbml_path = os.path.join(maud_output_dir, sbml_file)
+    param_path = os.path.join(maud_output_dir, param_file)
     sbml_doc, sbml_model = generate_sbml(
         idata, mi, experiment, chain, draw, warmup
     )
-    with open(file_out, "w") as f:
+    with open(sbml_path, "w") as f:
         f.write(sbml.writeSBMLToString(sbml_doc))
 
 
@@ -134,22 +132,26 @@ def generate_sbml_command(
     "--warmup", default=0, help="0 if in sampling, 1 if in warmup phase"
 )
 def generate_inits_command(data_path, chain, draw, warmup):
-    """Run the generate_inits function as a click command."""
-    output_name = "generated_inits.csv"
+    """Get inits from data_path for a specified chain and draw.
+
+    If warmup is 1, start counting draws from the first warmup draw.
+    """
+    output_name = "generated_inits.toml"
     output_path = os.path.join(data_path, output_name)
-    idata_file = os.path.join(data_path, "idata.nc")
+    idata_file = os.path.join(data_path, "idata.json")
     if not os.path.exists(idata_file):
-        idata_file = os.path.join(data_path, f"idata-chain{chain+1}.nc")
+        idata_file = os.path.join(data_path, f"idata-chain{chain+1}.json")
     assert os.path.exists(
         idata_file
     ), f"Directory {data_path} contains no idata file."
-    idata = az.InferenceData.from_netcdf(idata_file)
+    idata = az.from_json(idata_file)
     mi = load_maud_input(os.path.join(data_path, "user_input"))
     click.echo("Creating inits table")
-    inits = generate_inits(idata, mi, chain, draw, warmup)
+    inits_dict = generate_inits(idata, mi, chain, draw, warmup)
     click.echo(f"Saving inits table to: {output_path}")
-    inits.to_csv(output_path)
-    click.echo("Successfully generated inits csv")
+    with open(output_path, "w") as f:
+        toml.dump(inits_dict, f, encoder=toml.TomlNumpyEncoder())
+    click.echo("Successfully generated inits file")
 
 
 @cli.command("rescue-idata")
@@ -160,7 +162,7 @@ def generate_inits_command(data_path, chain, draw, warmup):
 @click.option("--chain", default=1, help="Chain to use")
 def rescue_idata(data_path, chain):
     """Generate an idata from a single chain after running Maud."""
-    output_file = os.path.join(data_path, f"idata-chain{chain}.nc")
+    output_file = os.path.join(data_path, f"idata-chain{chain}.json")
     input_dir = os.path.join(data_path, "user_input")
     csv_dir = os.path.join(data_path, "samples")
     end_pattern = f"{chain}.csv"
@@ -173,4 +175,4 @@ def rescue_idata(data_path, chain):
     ), f"No file in directory {csv_dir} ends with {end_pattern}"
     mi = load_maud_input(data_path=input_dir)
     idata = get_idata([csv_file], mi, "train")
-    idata.to_netcdf(output_file)
+    idata.to_json(output_file)

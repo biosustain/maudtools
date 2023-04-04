@@ -6,10 +6,8 @@ from copy import deepcopy
 
 import numpy as np
 from cmdstanpy import CmdStanMCMC, CmdStanModel
-
 from maud.data_model import MaudInput, SimulationStudyOutput
 from maud.sampling import STAN_PROGRAM_RELATIVE_PATH, get_input_data
-
 
 SIM_CONFIG = {"chains": 1, "fixed_param": True}
 

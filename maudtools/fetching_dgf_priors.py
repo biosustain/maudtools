@@ -1,6 +1,6 @@
 """Provides the function fetch_dgf_priors_from_equilibrator."""
 
-from typing import Tuple
+from typing import Dict, Tuple
 
 import numpy as np
 import pandas as pd
@@ -9,9 +9,22 @@ from equilibrator_cache.models.compound import Compound
 from maud.data_model.maud_input import MaudInput
 
 
+def put_dgf_priors_in_dictionary(
+    mu: pd.Series, cov: pd.DataFrame
+) -> Dict[str, list]:
+    """Put dgf priors in a dictionary for easier toml conversion."""
+    return {
+        "dgf": {
+            "ids": mu.index.tolist(),
+            "mean_vector": mu.values.tolist(),
+            "covariance_matrix": cov.values.tolist(),
+        }
+    }
+
+
 def fetch_dgf_priors_from_equilibrator(
     mi: MaudInput, temperature: str, ph: float
-) -> Tuple[pd.Series, pd.DataFrame]:
+) -> Dict[str, list]:
     """Given a Maud input, get a multivariate prior from equilibrator.
 
     Returns a pandas Series of prior means and a pandas DataFrame of
@@ -28,10 +41,10 @@ def fetch_dgf_priors_from_equilibrator(
     mu = []
     sigmas_fin = []
     sigmas_inf = []
-    met_ix = pd.Index(mi.stan_variable_set.dgf.ids, name="metabolite")[0]
+    met_ix = pd.Index(mi.parameters.dgf.ids, name="metabolite")[0]
     met_order = [m.id for m in mi.kinetic_model.metabolites]
     for m in mi.kinetic_model.metabolites:
-        external_id = m.metabolite_id if m.inchi_key is None else m.inchi_key
+        external_id = m.id if m.inchi_key is None else m.inchi_key
         c = cc.get_compound(external_id)
         if isinstance(c, Compound):
             mu_c, sigma_fin_c, sigma_inf_c = cc.standard_dg_formation(c)
@@ -45,7 +58,7 @@ def fetch_dgf_priors_from_equilibrator(
             raise ValueError(
                 f"cannot find compound for metabolite {m.id}"
                 f" with external id {external_id}."
-                "\nConsider setting the field metabolite_inchi_key"
+                "\nConsider setting the field inchi_key"
                 " if you haven't already."
             )
     sigmas_fin = np.array(sigmas_fin)
@@ -56,7 +69,11 @@ def fetch_dgf_priors_from_equilibrator(
         .loc[met_ix, met_ix]
         .round(10)
     )
-    mu = pd.Series(mu, index=met_order, name="prior_mean_dgf").loc[met_ix].round(10)
+    mu = (
+        pd.Series(mu, index=met_order, name="prior_mean_dgf")
+        .loc[met_ix]
+        .round(10)
+    )
     mu.index = mu.index.set_names("metabolite")
     cov.index = cov.index.set_names("metabolite")
-    return mu, cov
+    return put_dgf_priors_in_dictionary(mu, cov)

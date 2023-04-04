@@ -3,8 +3,8 @@ from typing import Tuple, Type, Union
 import arviz as az
 import numpy as np
 import pandas as pd
-from maud.data_model.prior_set import PriorSet
-from maud.data_model.stan_variable_set import StanVariable
+from maud.data_model.maud_parameter import MaudParameter
+from maud.data_model.prior import PriorMVN
 from plotnine import aes, facet_wrap, geom_pointrange, geom_violin, ggplot
 
 
@@ -20,25 +20,21 @@ def concat_experiments(infd, x_var: str = "reactions"):
 
 
 def get_aes_keys(
-    infd: az.InferenceData, stan_variable: Type[StanVariable]
+    infd: az.InferenceData, param: MaudParameter
 ) -> Tuple[bool, bool, str, str]:
-    try:
-        var = stan_variable("")
-    except TypeError:
-        var = stan_variable("", "_")
-    xa = infd.posterior[var.name]
+    xa = infd.posterior[param.name]
     posterior_keys = list(xa.xindexes.keys())
     with_experiment = "experiments" in posterior_keys
-    x_var = var.name
+    x_var = param.name
     key = (set(posterior_keys) - {"experiments", "chain", "draw"}).pop()
-    return with_experiment, var.non_negative, x_var, key
+    return with_experiment, param.non_negative, x_var, key
 
 
 def plot_maud_posterior(
     infd: az.InferenceData,
-    stan_variable: Type[StanVariable],
+    param: Type[MaudParameter],
 ) -> ggplot:
-    """Plot a `StanVariable` posterior and priors distributions as violins.
+    """Plot a `MaudParameter` posterior and priors distributions as violins.
 
     Example
     -------
@@ -46,13 +42,13 @@ def plot_maud_posterior(
 
     >>> import arviz
     >>> from maud.loading_maud_inputs import load_maud_input
-    >>> from maud.data_model.stan_variable_set import Dgf
+    >>> from maud.data_model.param_set import Dgf
     >>> from maudtools.plotting import plot_maud_posterior
     >>> infd = arviz.from_netcdf(SAMPLES_DIR / ".." / "idata.nc")
     >>> mi = load_maud_input(DATA_DIR)
     >>> plot_maud_posterior(infd, mi.priors, Dgf)
     """
-    with_experiment, _, x_var, key = get_aes_keys(infd, stan_variable)
+    with_experiment, _, x_var, key = get_aes_keys(infd, param)
     xa = infd.posterior[x_var]
 
     if with_experiment:
@@ -76,11 +72,10 @@ def plot_maud_posterior(
 
 def plot_maud_prior(
     infd: az.InferenceData,
-    priors: PriorSet,
-    stan_variable: Type[StanVariable],
+    param: MaudParameter,
     concat: bool = True,
 ) -> Union[ggplot, geom_pointrange]:
-    """Plot a `StanVariable` priors distributions as point or 95% quantiles.
+    """Plot a `MaudParameter` priors distributions as point or 95% quantiles.
 
     Example
     -------
@@ -88,7 +83,7 @@ def plot_maud_prior(
 
     >>> import arviz
     >>> from maud.loading_maud_inputs import load_maud_input
-    >>> from maud.data_model.stan_variable_set import Dgf
+    >>> from maud.data_model.param_set import Dgf
     >>> from maudtools.plotting import plot_maud_prior
     >>> infd = arviz.from_netcdf(SAMPLES_DIR / ".." / "idata.nc")
     >>> mi = load_maud_input(DATA_DIR)
@@ -100,44 +95,43 @@ def plot_maud_prior(
     >>> from maudtools.plotting import plot_maud_posterior
     >>> plot_maud_posterior(infd, Dgf) + plot_maud_prior(infd, mi.priors, Dgf)
     """
-    with_experiment, non_negative, x_var, key = get_aes_keys(
-        infd, stan_variable
-    )
+    with_experiment, non_negative, x_var, key = get_aes_keys(infd, param)
 
-    var_priors = priors.__getattribute__(x_var)
     if with_experiment:
-        var_priors.location["experiment"] = var_priors.location.index
-        df_priors = var_priors.location.melt(
-            id_vars=["experiment"], var_name=x_var, value_name="location"
+        index = pd.Index(param.ids[0], name="experiment")
+        columns = pd.Index(param.ids[1], name=x_var)
+        loc_df = (
+            pd.DataFrame(param.prior.location, index=index, columns=columns)
+            .reset_index()
+            .melt(id_vars=["experiment"], var_name=x_var, value_name="location")
         )
-        if "scale" in var_priors.__dict__:
-            var_priors.scale["experiment"] = var_priors.scale.index
-            df_priors_scale = var_priors.scale.melt(
-                id_vars=["experiment"], var_name=x_var, value_name="scale"
+        scale_df = (
+            pd.DataFrame(
+                0 if isinstance(param.prior, PriorMVN) else param.prior.scale,
+                index=index,
+                columns=columns,
             )
-            df_priors = pd.merge(
-                df_priors, df_priors_scale, on=["experiment", x_var]
-            )
+            .reset_index()
+            .melt(id_vars=["experiment"], var_name=x_var, value_name="scale")
+        )
+        df_priors = pd.merge(loc_df, scale_df, on=["experiment", x_var])
     else:
-        df_priors = pd.DataFrame(var_priors.location)
-        df_priors.columns = ["location"]
-        df_priors[x_var] = df_priors.index
-        if "scale" in var_priors.__dict__:
-            if isinstance(var_priors.scale, pd.Series):
-                df_priors_scale = pd.DataFrame(var_priors.scale)
-                df_priors_scale.columns = ["scale"]
-                df_priors_scale[x_var] = df_priors.index
-                df_priors = pd.merge(df_priors, df_priors_scale, on=[x_var])
-    if "scale" not in df_priors.columns:
-        # geom_poinrange will be transformed into a geom_point
-        df_priors["scale"] = 0
-
+        index = pd.Index(param.ids[0], name=x_var)
+        df_priors = pd.DataFrame(
+            {
+                "location": param.prior.location,
+                "scale": param.prior.scale
+                if not isinstance(param.prior, PriorMVN)
+                else 0,
+            },
+            index=index,
+        ).reset_index()
     # prepare scatter intervals
     if non_negative:
         df_priors.location = np.exp(df_priors.location)
         df_priors.scale = np.exp(df_priors.scale)
-        df_priors["y_max"] = df_priors.location / df_priors.scale ** 2
-        df_priors["y_min"] = df_priors.location * df_priors.scale ** 2
+        df_priors["y_max"] = df_priors.location / df_priors.scale**2
+        df_priors["y_min"] = df_priors.location * df_priors.scale**2
     else:
         df_priors["y_max"] = df_priors.location + 2 * df_priors.scale
         df_priors["y_min"] = df_priors.location - 2 * df_priors.scale
@@ -160,11 +154,5 @@ def plot_maud_prior(
     return plot
 
 
-def plot_maud_variable(
-    infd: az.InferenceData,
-    priors: PriorSet,
-    stan_variable: Type[StanVariable],
-):
-    return plot_maud_posterior(infd, stan_variable) + plot_maud_prior(
-        infd, priors, stan_variable, True
-    )
+def plot_maud_variable(infd: az.InferenceData, param: MaudParameter):
+    return plot_maud_posterior(infd, param) + plot_maud_prior(infd, param, True)
